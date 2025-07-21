@@ -1,0 +1,175 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3 mb-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Total Users</h6>
+                        <h2 class="mb-0">{{ stats.total_users }}</h2>
+                    </div>
+                    <i class="bi bi-people fs-1"></i>
+                </div>
+                <a href="{{ url_for('admin_users') }}" class="stretched-link text-white"></a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Active Assessments</h6>
+                        <h2 class="mb-0">{{ stats.active_assessments }}</h2>
+                    </div>
+                    <i class="bi bi-clipboard-check fs-1"></i>
+                </div>
+                <a href="{{ url_for('admin_assessments', status='in_progress') }}" class="stretched-link text-white"></a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Completed Today</h6>
+                        <h2 class="mb-0">{{ stats.completed_today }}</h2>
+                    </div>
+                    <i class="bi bi-calendar-check fs-1"></i>
+                </div>
+                <a href="{{ url_for('admin_assessments', status='completed') }}" class="stretched-link text-white"></a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Avg. Score</h6>
+                        <h2 class="mb-0">{{ "%.1f"|format(stats.avg_score) if stats.avg_score else 'N/A' }}</h2>
+                    </div>
+                    <i class="bi bi-graph-up fs-1"></i>
+                </div>
+                <a href="{{ url_for('admin_reports') }}" class="stretched-link text-dark"></a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent Assessments</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for assessment in recent_assessments %}
+                            <tr>
+                                <td>{{ assessment.user.name }}</td>
+                                <td>{{ assessment.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if assessment.status == 'completed' else 'primary' if assessment.status == 'in_progress' else 'secondary' }}">
+                                        {{ assessment.status.replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if assessment.overall_score is not none %}
+                                        {{ "%.1f"|format(assessment.overall_score) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('admin_view_assessment', assessment_id=assessment.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">No assessments found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-end mt-3">
+                    <a href="{{ url_for('admin_assessments') }}" class="btn btn-primary">View All Assessments</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Score Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="scoreChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Score distribution chart
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Level 1-2', 'Level 3', 'Level 4', 'Level 5', 'Level 6'],
+            datasets: [{
+                data: [
+                    {{ score_distribution.level_1_2 }},
+                    {{ score_distribution.level_3 }},
+                    {{ score_distribution.level_4 }},
+                    {{ score_distribution.level_5 }},
+                    {{ score_distribution.level_6 }}
+                ],
+                backgroundColor: [
+                    '#dc3545',
+                    '#ffc107',
+                    '#17a2b8',
+                    '#28a745',
+                    '#007bff'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

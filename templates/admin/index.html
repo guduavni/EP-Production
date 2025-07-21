@@ -1,0 +1,235 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}לוח בקרה - EP-Simulator{% endblock %}
+
+{% block admin_content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">לוח בקרה</h1>
+        <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+            <i class="fas fa-download fa-sm text-white-50"></i> ייצא דוח
+        </a>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row">
+        <!-- Total Users Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">משתמשים רשומים</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.user_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Exams Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">מבחנים שבוצעו</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.exam_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clipboard-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Scripts Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">תסריטי מבחן</div>
+                            <div class="row no-gutters align-items-center">
+                                <div class="col-auto">
+                                    <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{ stats.script_count }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-file-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Average Score Card -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">ציון ממוצע</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "%0.1f"|format(stats.avg_score|float) }}%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row">
+        <!-- Recent Exams -->
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <!-- Card Header - Dropdown -->
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">מבחנים אחרונים</h6>
+                    <div class="dropdown no-arrow">
+                        <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+                            <div class="dropdown-header">פעולות:</div>
+                            <a class="dropdown-item" href="{{ url_for('examresult.create_view') }}">
+                                <i class="fas fa-plus fa-sm fa-fw mr-2 text-gray-400"></i> הוסף מבחן חדש
+                            </a>
+                            <a class="dropdown-item" href="{{ url_for('examresult.index_view') }}">
+                                <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i> הצג את כל המבחנים
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-download fa-sm fa-fw mr-2 text-gray-400"></i> ייצא דוח
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <!-- Card Body -->
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="recentExamsTable" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>מספר מבחן</th>
+                                    <th>שם משתמש</th>
+                                    <th>ת.ז. מערכת</th>
+                                    <th>תאריך מבחן</th>
+                                    <th>ציון סופי</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exam in recent_exams %}
+                                <tr>
+                                    <td>{{ exam.exam_id }}</td>
+                                    <td>{{ exam.first_name }} {{ exam.last_name }}</td>
+                                    <td>{{ exam.user_id }}</td>
+                                    <td>{{ exam.exam_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar {% if exam.final_score >= 70 %}bg-success{% else %}bg-danger{% endif %}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ exam.final_score }}%" 
+                                                 aria-valuenow="{{ exam.final_score }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                {{ exam.final_score }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ url_for('examresult.details_view', id=exam.id) }}" 
+                                           class="btn btn-info btn-circle btn-sm" 
+                                           title="צפה בפרטים">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="#" 
+                                           onclick="showTranscript('{{ exam.id }}')" 
+                                           class="btn btn-primary btn-circle btn-sm" 
+                                           title="צפה בתמליל">
+                                            <i class="fas fa-file-alt"></i>
+                                        </a>
+                                        {% if exam.test_image %}
+                                        <a href="#" 
+                                           onclick="showImage('{{ exam.test_image.file_id }}')" 
+                                           class="btn btn-warning btn-circle btn-sm" 
+                                           title="צפה בתמונה">
+                                            <i class="fas fa-image"></i>
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center">לא נמצאו מבחנים אחרונים</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- Page level plugins -->
+<script src="{{ url_for('static', filename='vendor/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/datatables/dataTables.bootstrap4.min.js') }}"></script>
+
+<!-- Page level custom scripts -->
+<script>
+// Initialize DataTable with RTL support
+$(document).ready(function() {
+    $('#recentExamsTable').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.10.20/i18n/Hebrew.json"
+        },
+        "order": [[3, "desc"]], // Sort by exam date
+        "pageLength": 10,
+        "responsive": true
+    });
+});
+
+// Function to show transcript in modal
+function showTranscript(examId) {
+    fetch(`/api/exam/${examId}/transcript`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const modal = $('#transcriptModal');
+                const content = $('#transcriptContent');
+                content.html(data.transcript || '<p class="text-muted text-center">לא נמצא תוכן לתצוגה</p>');
+                modal.modal('show');
+            } else {
+                alert('אירעה שגיאה בטעינת התמליל: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('אירעה שגיאה בטעינת התמליל');
+        });
+}
+
+// Function to show image in modal
+function showImage(fileId) {
+    const modal = $('#imageModal');
+    const img = $('#examImage');
+    img.attr('src', `/api/media/${fileId}/view`);
+    modal.modal('show');
+}
+</script>
+{% endblock %}

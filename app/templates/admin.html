@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <h2 class="text-center mb-4">Admin Panel</h2>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5>Create New Assessment</h5>
+            </div>
+            <div class="card-body">
+                <form id="newAssessmentForm">
+                    <div class="mb-3">
+                        <label for="firstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="firstName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="lastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="lastName" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Start Assessment</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5>Current Session</h5>
+            </div>
+            <div class="card-body">
+                <div id="sessionInfo" class="text-center">
+                    <p class="text-muted">No active session</p>
+                </div>
+                <div class="mt-3">
+                    <h6>ICAO Assessment Criteria</h6>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Criterion</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scoresTable">
+                            <tr>
+                                <td>Pronunciation</td>
+                                <td>N/A</td>
+                            </tr>
+                            <tr>
+                                <td>Structure</td>
+                                <td>N/A</td>
+                            </tr>
+                            <tr>
+                                <td>Vocabulary</td>
+                                <td>N/A</td>
+                            </tr>
+                            <tr>
+                                <td>Fluency</td>
+                                <td>N/A</td>
+                            </tr>
+                            <tr>
+                                <td>Comprehension</td>
+                                <td>N/A</td>
+                            </tr>
+                            <tr>
+                                <td>Interaction</td>
+                                <td>N/A</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('newAssessmentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const firstName = document.getElementById('firstName').value;
+    const lastName = document.getElementById('lastName').value;
+    
+    try {
+        const response = await fetch('/api/start_session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                firstName: firstName,
+                lastName: lastName
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update UI with new session info
+            document.getElementById('sessionInfo').innerHTML = `
+                <h4>${firstName} ${lastName}</h4>
+                <p>User ID: <strong>${data.userId}</strong></p>
+                <p>Status: <span class="badge bg-success">In Progress</span></p>
+            `;
+            
+            // Enable candidate link with user ID
+            const candidateLink = document.querySelector('a[href="/candidate"]');
+            candidateLink.href = `/candidate?userId=${data.userId}`;
+            
+            // Reset form
+            this.reset();
+        }
+    } catch (error) {
+        console.error('Error starting session:', error);
+        alert('Failed to start assessment. Please try again.');
+    }
+});
+</script>
+{% endblock %}

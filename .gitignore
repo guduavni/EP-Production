@@ -1,0 +1,148 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.manifest
+*.spec
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+
+# Environment variables
+.env
+*.env
+
+# Logs
+logs/
+*.log
+
+# Local development
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Uploads
+uploads/
+media/
+
+# MongoDB
+data/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Local development
+instance/
+.webassets-cache
+
+# Flask
+*.db
+*.sqlite
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Project specific
+instance/
+.webassets-cache
+
+# Translations
+*.mo
+
+# Sphinx
+docs/_build/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# IDE
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment variables
+.env
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# Local development
+instance/
+.webassets-cache
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Media and uploads
+/media/
+/static/uploads/
+
+# Project specific
+*.wav
+*.mp3
+*.mp4
+*.mov
+*.avi
+*.flac
+*.m4a
+*.ogg
+*.wma
+*.aac
+*.flv
+*.mkv
+*.webm
+*.vtt
+*.srt
+*.ass
+*.ssa
+*.smi
+*.sami
+*.scc
+*.ttml
+*.dfxp
+*.qt.txt
+*.xlf
+*.xml

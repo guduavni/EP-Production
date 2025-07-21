@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: ep-simulator-web
+    restart: always
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - uploads:/app/static/uploads
+    environment:
+      - FLASK_APP=wsgi.py
+      - FLASK_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/
+      - MONGODB_DB=ep_simulator
+      - SECRET_KEY=your-secret-key-change-in-production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - app-network
+
+  mongo:
+    image: mongo:5.0
+    container_name: ep-simulator-mongo
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - app-network
+
+  redis:
+    image: redis:6-alpine
+    container_name: ep-simulator-redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ep-simulator-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - web
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:
+  uploads:

@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">ICAO English Proficiency Assessment</h4>
+            </div>
+            <div class="card-body">
+                <div id="welcomeScreen" class="text-center">
+                    <h5 class="mb-4">Welcome to the ICAO English Proficiency Assessment</h5>
+                    <div class="mb-4">
+                        <label for="userId" class="form-label">Enter your User ID to begin:</label>
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control form-control-lg text-uppercase" id="userId" 
+                                   placeholder="e.g., A1B2C3" maxlength="6" pattern="[A-Z0-9]{6}">
+                            <button class="btn btn-primary" type="button" id="loadUserBtn">Load</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="assessmentContainer" style="display: none;">
+                    <div class="mb-4">
+                        <h5 id="stageTitle">Introduction</h5>
+                        <div id="prompt" class="alert alert-info">
+                            <p id="promptText">Welcome to the ICAO English Proficiency Assessment. Please prepare to begin the test.</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6>Instructions:</h6>
+                        <ol>
+                            <li>Click and hold the Record button to speak</li>
+                            <li>Release the button to stop recording</li>
+                            <li>Your response will be processed automatically</li>
+                            <li>Wait for the next question or instruction</li>
+                        </ol>
+                    </div>
+
+                    <div class="text-center my-4">
+                        <button id="recordBtn" class="btn btn-danger btn-lg rounded-circle" style="width: 80px; height: 80px;">
+                            <i class="bi bi-mic"></i>
+                            <span class="d-block">Hold to Record</span>
+                        </button>
+                        <p id="recordingStatus" class="mt-2 text-muted">Press and hold the button to record</p>
+                    </div>
+
+                    <div class="mt-4">
+                        <h6>Transcript:</h6>
+                        <div id="transcript" class="border p-3" style="min-height: 100px; background-color: #f8f9fa;">
+                            <div class="system-message">System: Welcome to the assessment. Please wait for the instructions.</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 text-end">
+                        <button id="resetBtn" class="btn btn-outline-secondary me-2">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reset
+                        </button>
+                        <button id="nextBtn" class="btn btn-primary" disabled>
+                            Next <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('userId');
+    
+    if (userId) {
+        document.getElementById('userId').value = userId;
+        startAssessment();
+    }
+    
+    document.getElementById('loadUserBtn').addEventListener('click', startAssessment);
+    document.getElementById('userId').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            startAssessment();
+        }
+    });
+    
+    // Record button functionality
+    const recordBtn = document.getElementById('recordBtn');
+    let mediaRecorder;
+    let audioChunks = [];
+    
+    recordBtn.addEventListener('mousedown', startRecording);
+    recordBtn.addEventListener('mouseup', stopRecording);
+    recordBtn.addEventListener('mouseleave', stopRecording);
+    
+    // Touch support for mobile devices
+    recordBtn.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        startRecording();
+    });
+    
+    recordBtn.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        stopRecording();
+    });
+    
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                }
+            };
+            
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                await sendAudioToServer(audioBlob);
+            };
+            
+            mediaRecorder.start();
+            updateRecordingUI(true);
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            alert('Could not access microphone. Please ensure you have granted microphone permissions.');
+        }
+    }
+    
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            updateRecordingUI(false);
+            
+            // Stop all tracks in the stream
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+    }
+    
+    function updateRecordingUI(isRecording) {
+        const statusElement = document.getElementById('recordingStatus');
+        if (isRecording) {
+            recordBtn.classList.remove('btn-danger');
+            recordBtn.classList.add('btn-danger', 'active');
+            statusElement.textContent = 'Recording... Release to stop';
+        } else {
+            recordBtn.classList.remove('btn-danger', 'active');
+            recordBtn.classList.add('btn-danger');
+            statusElement.textContent = 'Press and hold the button to record';
+        }
+    }
+    
+    async function sendAudioToServer(audioBlob) {
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.wav');
+        
+        try {
+            const response = await fetch('/api/transcribe', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update transcript with user's speech
+                const transcriptElement = document.getElementById('transcript');
+                const userDiv = document.createElement('div');
+                userDiv.className = 'user-message mt-2';
+                userDiv.textContent = `You: ${data.transcript}`;
+                transcriptElement.appendChild(userDiv);
+                
+                // Auto-scroll to bottom
+                transcriptElement.scrollTop = transcriptElement.scrollHeight;
+                
+                // Generate follow-up questions
+                await generateFollowUpQuestions(data.transcript);
+            }
+        } catch (error) {
+            console.error('Error sending audio to server:', error);
+            alert('Error processing your recording. Please try again.');
+        }
+    }
+    
+    function generateFollowUpQuestions(transcript) {
+        // Show loading state
+        const nextBtn = document.getElementById('nextBtn');
+        nextBtn.disabled = true;
+        nextBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        
+        // Send transcript to server for question generation
+        fetch('/api/generate-questions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                transcript: transcript,
+                context: 'aviation',
+                num_questions: 1
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.questions && data.questions.length > 0) {
+                // Update prompt with the first question and speak it
+                const question = data.questions[0];
+                updatePrompt(question, true);
+                
+                // Enable next button
+                nextBtn.disabled = false;
+                nextBtn.innerHTML = 'Next <i class="bi bi-arrow-right"></i>';
+                
+                // Set up next button handler
+                nextBtn.onclick = function() {
+                    if (data.questions.length > 1) {
+                        // Show next question
+                        updatePrompt(data.questions[1], true);
+                        // Remove the shown question
+                        data.questions.shift();
+                    } else {
+                        // No more questions, move to next stage
+                        nextBtn.disabled = true;
+                        // TODO: Implement stage transition
+                    }
+                };
+            } else {
+                throw new Error('No questions generated');
+            }
+        })
+        .catch(error => {
+            console.error('Error generating questions:', error);
+            updatePrompt('An error occurred while generating questions. Please try again.');
+            nextBtn.disabled = false;
+            nextBtn.innerHTML = 'Next <i class="bi bi-arrow-right"></i>';
+        });
+    }
+    
+    function updatePrompt(text, speakIt = true) {
+        const promptElement = document.getElementById('promptText');
+        promptElement.textContent = text;
+        
+        // Add to transcript
+        const transcriptElement = document.getElementById('transcript');
+        const systemDiv = document.createElement('div');
+        systemDiv.className = 'system-message';
+        systemDiv.textContent = 'System: ' + text;
+        
+        // Remove any existing system messages to avoid duplicates
+        const existingMessages = transcriptElement.getElementsByClassName('system-message');
+        while (existingMessages.length > 0) {
+            existingMessages[0].remove();
+        }
+        
+        transcriptElement.appendChild(systemDiv);
+        
+        // Auto-scroll to bottom
+        transcriptElement.scrollTop = transcriptElement.scrollHeight;
+        
+        // Speak the prompt if requested
+        if (speakIt && text) {
+            speak(text);
+        }
+    }
+    
+    // Text-to-speech function
+    function speak(text, callback) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9;
+            
+            if (callback) {
+                utterance.onend = callback;
+            }
+            
+            // Stop any current speech
+            window.speechSynthesis.cancel();
+            // Start new speech
+            window.speechSynthesis.speak(utterance);
+        } else {
+            console.warn('Text-to-speech not supported in this browser');
+            if (callback) callback();
+        }
+    }
+    
+    function startAssessment() {
+        const userId = document.getElementById('userId').value.trim().toUpperCase();
+        
+        if (!userId || !/^[A-Z0-9]{6}$/.test(userId)) {
+            alert('Please enter a valid 6-character User ID');
+            return;
+        }
+        
+        // TODO: Verify user ID with server
+        
+        // Show assessment interface
+        document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('assessmentContainer').style.display = 'block';
+        
+        // Welcome message and instructions
+        const welcomeMessage = 'Welcome to the ICAO English Proficiency Assessment. ' +
+            'In this assessment, you will be asked to speak about yourself and respond to various questions. ' +
+            'Press and hold the red record button to speak. Release the button when you are finished. ' +
+            'Please tell us about yourself and your experience in aviation.';
+        
+        // Update the prompt
+        updatePrompt(welcomeMessage);
+        
+        // Speak the welcome message
+        speak(welcomeMessage);
+    }
+    
+    // Reset button functionality
+    document.getElementById('resetBtn').addEventListener('click', function() {
+        if (confirm('Are you sure you want to reset the assessment? All progress will be lost.')) {
+            // Reset UI
+            document.getElementById('assessmentContainer').style.display = 'none';
+            document.getElementById('welcomeScreen').style.display = 'block';
+            document.getElementById('transcript').innerHTML = 
+                '<div class="system-message">System: Welcome to the assessment. Please wait for the instructions.</div>';
+            document.getElementById('nextBtn').disabled = true;
+        }
+    });
+});
+</script>
+{% endblock %}

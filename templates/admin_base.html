@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block head %}
+{{ super() }}
+<!-- Custom CSS for Admin -->
+<style>
+    .admin-header {
+        background-color: #343a40;
+        padding: 15px 0;
+        margin-bottom: 20px;
+    }
+    .admin-title {
+        color: white;
+        margin: 0;
+    }
+    .admin-container {
+        padding: 20px;
+    }
+    /* Modal Styles */
+    .modal-content {
+        direction: rtl;
+        text-align: right;
+    }
+    .modal-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    .transcript-section {
+        border-bottom: 1px solid #dee2e6;
+        padding: 15px 0;
+        margin-bottom: 15px;
+    }
+    .transcript-section:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <div class="container">
+        <h1 class="admin-title">ממשק ניהול</h1>
+    </div>
+</div>
+
+<div class="container admin-container">
+    {% block admin_content %}{% endblock %}
+</div>
+
+<!-- Modal for Transcript -->
+<div class="modal fade" id="transcriptModal" tabindex="-1" role="dialog" aria-labelledby="transcriptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="transcriptModalLabel">תמליל המבחן</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="transcriptContent">
+                <!-- Content will be loaded via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">סגור</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Image -->
+<div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">תמונה מהמבחן</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="examImage" src="" alt="תמונה מהמבחן" class="img-fluid">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">סגור</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Script -->
+<div class="modal fade" id="scriptModal" tabindex="-1" role="dialog" aria-labelledby="scriptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scriptModalLabel">תסריט המבחן</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="scriptContent">
+                <!-- Content will be loaded via JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">סגור</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- Custom JavaScript for Admin -->
+<script>
+// Function to show transcript in modal
+function showTranscript(examId) {
+    fetch(`/api/exam/${examId}/transcript`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const modal = document.getElementById('transcriptModal');
+                const content = document.getElementById('transcriptContent');
+                
+                // Split transcript into sections
+                const sections = data.transcript.split('---');
+                let html = '';
+                
+                sections.forEach((section, index) => {
+                    if (section.trim()) {
+                        html += `<div class="transcript-section">${section.trim()}</div>`;
+                    }
+                });
+                
+                content.innerHTML = html || '<p>לא נמצא תוכן לתצוגה</p>';
+                $(modal).modal('show');
+            } else {
+                alert('אירעה שגיאה בטעינת התמליל: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('אירעה שגיאה בטעינת התמליל');
+        });
+}
+
+// Function to show image in modal
+function showImage(fileId) {
+    const modal = document.getElementById('imageModal');
+    const img = document.getElementById('examImage');
+    img.src = `/api/media/${fileId}/view`;
+    $(modal).modal('show');
+}
+
+// Function to show script in modal
+function showScript(scriptId) {
+    fetch(`/api/script/${scriptId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const modal = document.getElementById('scriptModal');
+                const content = document.getElementById('scriptContent');
+                content.innerHTML = `<pre>${data.script.content}</pre>`;
+                $(modal).modal('show');
+            } else {
+                alert('אירעה שגיאה בטעינת התסריט: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('אירעה שגיאה בטעינת התסריט');
+        });
+}
+
+// Initialize tooltips
+$(document).ready(function() {
+    $('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %}
