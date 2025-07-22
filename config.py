@@ -2,10 +2,13 @@ import os
 import secrets
 from datetime import timedelta
 from pathlib import Path
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    # Load environment variables from .env file if it exists
+    load_dotenv()
+except ImportError:
+    print("python-dotenv not installed, using system environment variables")
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent
@@ -35,6 +38,9 @@ class Config:
     # Security settings
     SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT', 'dev-salt-please-change-in-production')
     SECURITY_PASSWORD_HASH = 'bcrypt'
+    
+    # CSRF settings
+    WTF_CSRF_ENABLED = False  # Disable CSRF for testing
     
     # Email settings
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')

@@ -5,8 +5,11 @@ This module handles the registration of all models to avoid circular imports.
 """
 from flask import current_app
 from mongoengine import register_connection
-from .models import db
+
+# Import models in the correct order to avoid circular imports
+from .models.role import Role
 from .models.user import User
+from .models.notification import Notification
 from .models.assessment import (
     Question,
     AudioRecording,

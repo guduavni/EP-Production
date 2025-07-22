@@ -4,15 +4,16 @@ Notification Model
 This module defines the Notification model for the application.
 """
 from datetime import datetime
-from mongoengine import Document, StringField, LazyReferenceField, DateTimeField, BooleanField, IntField, CASCADE
+from mongoengine import (
+    Document, StringField, LazyReferenceField, DateTimeField, 
+    BooleanField, IntField, CASCADE
+)
 
 # Import base document
 from .base import BaseDocument
 
-# Import the database instance
-from . import db
-
-# Using string reference to avoid circular imports
+# Import the database instance from extensions
+from app.extensions import db
 
 class Notification(BaseDocument):
     """
@@ -40,14 +41,14 @@ class Notification(BaseDocument):
     PRIORITY_NORMAL = 2
     PRIORITY_HIGH = 3
     
-    # Fields - using string reference in LazyReferenceField to avoid circular imports
-    user = LazyReferenceField('User', required=True, reverse_delete_rule=CASCADE, passthrough=True)
+    # Fields - using string reference to avoid circular imports
+    user = LazyReferenceField('user.User', required=True, reverse_delete_rule=CASCADE, passthrough=True)
     title = StringField(required=True, max_length=200)
     message = StringField(required=True)
     notification_type = StringField(choices=[
-        (TYPE_INFO, 'Info'),
-        (TYPE_SUCCESS, 'Success'),
-        (TYPE_WARNING, 'Warning'),
+        ('info', 'Info'),
+        ('success', 'Success'),
+        ('warning', 'Warning'),
         (TYPE_ERROR, 'Error')
     ], default=TYPE_INFO)
     icon = StringField()

@@ -9,19 +9,18 @@ from enum import Enum
 from mongoengine import (
     EmbeddedDocument, EmbeddedDocumentField, ListField, 
     StringField, FloatField, DateTimeField, IntField, DictField, BooleanField,
-    LazyReferenceField, PULL, CASCADE, Document
+    LazyReferenceField, PULL, CASCADE, Document, register_connection, get_connection
 )
 
-# Import base document
+# Import base document first
 from .base import BaseDocument
 
-# Import the database instance
-from . import db
+# Import the database instance from extensions
+from app.extensions import db
 
-# Using string references to avoid circular imports
-# The actual User model will be set during app initialization
-from mongoengine import CASCADE
+# Import models using string references to avoid circular imports
 
+# Import enums first to avoid circular imports
 class QuestionType(Enum):
     """Types of questions in the assessment."""
     MULTIPLE_CHOICE = 'multiple_choice'
@@ -30,6 +29,15 @@ class QuestionType(Enum):
     ORAL_RESPONSE = 'oral_response'
     PICTURE_DESCRIPTION = 'picture_description'
     SCENARIO = 'scenario'
+
+class AssessmentStatus(Enum):
+    """Status of an assessment."""
+    DRAFT = 'draft'
+    IN_PROGRESS = 'in_progress'
+    UNDER_REVIEW = 'under_review'
+    COMPLETED = 'completed'
+    ARCHIVED = 'archived'
+    CANCELLED = 'cancelled'
 
 class Question(EmbeddedDocument):
     """
@@ -120,15 +128,6 @@ class AudioRecording(EmbeddedDocument):
             'processed_at': self.processed_at.isoformat() if self.processed_at else None
         }
 
-class AssessmentStatus(Enum):
-    """Status of an assessment."""
-    DRAFT = 'draft'
-    IN_PROGRESS = 'in_progress'
-    UNDER_REVIEW = 'under_review'
-    COMPLETED = 'completed'
-    ARCHIVED = 'archived'
-    CANCELLED = 'cancelled'
-
 class Assessment(BaseDocument):
     """
     Assessment model for ICAO English proficiency tests.
@@ -165,19 +164,19 @@ class Assessment(BaseDocument):
         'strict': False  # Allow dynamic fields
     }
     
-    # Status constants
+    # Assessment status choices
     STATUS_CHOICES = [status.value for status in AssessmentStatus]
     
-    # Test type constants
-    TEST_TYPE_OPI = 'opi'  # Oral Proficiency Interview
-    TEST_TYPE_EAP = 'eap'  # English for Aviation Purposes
-    TEST_TYPE_LPE = 'lpe'  # Language Proficiency Exam
+    # Test type choices
+    TEST_TYPE_OPI = 'opi'
+    TEST_TYPE_EAP = 'eap'
+    TEST_TYPE_LPE = 'lpe'
     TEST_TYPE_CHOICES = (TEST_TYPE_OPI, TEST_TYPE_EAP, TEST_TYPE_LPE)
     
     # Relationships - using string references to avoid circular imports
-    candidate = LazyReferenceField('User', required=True, reverse_delete_rule=CASCADE, passthrough=True)
-    examiner = LazyReferenceField('User', reverse_delete_rule=CASCADE, required=False, passthrough=True)
-    previous_assessment = LazyReferenceField('self', reverse_delete_rule=CASCADE, required=False, passthrough=True)
+    candidate = LazyReferenceField('user.User', required=True, reverse_delete_rule=CASCADE, passthrough=True)
+    examiner = LazyReferenceField('user.User', reverse_delete_rule=CASCADE, required=False, passthrough=True)
+    previous_assessment = LazyReferenceField('assessment.Assessment', reverse_delete_rule=CASCADE, required=False, passthrough=True)
     
     # Assessment details
     title = StringField(required=True, max_length=200)
@@ -199,8 +198,8 @@ class Assessment(BaseDocument):
     scenario = StringField()
     
     # Questions and recordings
-    questions = ListField(EmbeddedDocumentField(Question))
-    recordings = ListField(EmbeddedDocumentField(AudioRecording))
+    questions = ListField(EmbeddedDocumentField('Question'))
+    recordings = ListField(EmbeddedDocumentField('AudioRecording'))
     
     # ICAO scores
     pronunciation_score = FloatField(min_value=0, max_value=6, default=0)

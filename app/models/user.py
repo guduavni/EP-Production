@@ -20,8 +20,8 @@ from mongoengine import (
 # Import base document
 from .base import BaseDocument
 
-# Import the database instance
-from . import db
+# Import the database instance from extensions
+from app.extensions import db
 
 # Email validation regex
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9.+_-]+@[a-zA-Z0-9._-]+\.[a-zA-Z]+$')
@@ -50,20 +50,20 @@ class User(BaseDocument, UserMixin):
         'collection': 'users',
         'indexes': [
             # Single field indexes
+            {'fields': ['user_id'], 'unique': True, 'sparse': True},
             'email',
-            'role',
             'is_active',
             'email_verified',
             'last_login',
             'created_at',
             'updated_at',
+            'status',
             
             # TTL index for temporary data
             {'fields': ['created_at'], 'expireAfterSeconds': 60 * 60 * 24 * 30 * 6},  # 6 months
             
             # Compound indexes
             [('email', 1), ('is_active', 1)],
-            [('role', 1), ('is_active', 1)],
             [('status', 1), ('is_active', 1)],
             [('last_login', -1)],
             [('created_at', -1)],
@@ -81,6 +81,7 @@ class User(BaseDocument, UserMixin):
     }
     
     # Authentication fields
+    user_id = StringField(required=True, unique=True, sparse=True)  # Sparse index to allow nulls
     email = EmailField(required=True, unique=True, max_length=255)
     password_hash = StringField(required=True, max_length=255)
     is_active = BooleanField(default=True)
@@ -99,9 +100,9 @@ class User(BaseDocument, UserMixin):
     language = StringField(default='en')
     
     # Role and status
-    role = StringField(choices=ROLE_CHOICES, default=ROLE_CANDIDATE)
     status = StringField(choices=STATUS_CHOICES, default=STATUS_ACTIVE)
-    roles = ListField(ReferenceField('Role', reverse_delete_rule=PULL, required=False))
+    # Role and permissions - using string reference to avoid circular imports
+    roles = ListField(ReferenceField('role.Role', reverse_delete_rule=PULL), default=[])
     permissions = ListField(StringField())
     
     # Authentication tracking
@@ -137,8 +138,8 @@ class User(BaseDocument, UserMixin):
     profile_picture = StringField()
     
     # Relationships - using string references to avoid circular imports
-    assessments = ListField(LazyReferenceField('Assessment', reverse_delete_rule=PULL, required=False, passthrough=True))
-    created_assessments = ListField(LazyReferenceField('Assessment', reverse_delete_rule=PULL, required=False, passthrough=True))
+    assessments = ListField(LazyReferenceField('assessment.Assessment', reverse_delete_rule=PULL, required=False, passthrough=True))
+    created_assessments = ListField(LazyReferenceField('assessment.Assessment', reverse_delete_rule=PULL, required=False, passthrough=True))
     
     # Audit fields
     created_by = StringField()
@@ -149,16 +150,13 @@ class User(BaseDocument, UserMixin):
     meta = {
         'collection': 'users',
         'indexes': [
-            'email',
             'is_active',
             'email_verified',
-            'role',
             'status',
             'created_at',
-            {'fields': ['email'], 'unique': True},
             {'fields': ['email_verification_token'], 'sparse': True},
             {'fields': ['reset_password_token'], 'sparse': True},
-            {'fields': ['created_at'], 'expireAfterSeconds': 60 * 60 * 24 * 365}  # 1 year TTL
+            {'fields': ['$name', '$first_name', '$last_name', '$email'], 'default_language': 'english'}
         ]
     }
     

@@ -15,15 +15,9 @@
                         {{ form.hidden_tag() if form }}
                         
                         <div class="mb-3">
-                            <label for="first_name" class="form-label">First Name</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" 
-                                   value="{{ form.first_name.data if form and form.first_name.data }}" required>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="last_name" class="form-label">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name"
-                                   value="{{ form.last_name.data if form and form.last_name.data }}" required>
+                            <label for="name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ form.name.data if form and form.name.data }}" required>
                         </div>
                         
                         <div class="mb-3">

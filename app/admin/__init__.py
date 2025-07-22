@@ -1,4 +1,4 @@
-""
+"""
 Admin Blueprint
 
 This module contains the admin interface for the EP-Simulator application.
@@ -10,6 +10,9 @@ import os
 
 # Create admin blueprint
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+# Export the blueprint as 'bp' for compatibility
+bp = admin_bp
 
 @admin_bp.before_request
 @login_required

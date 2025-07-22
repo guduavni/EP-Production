@@ -1,4 +1,4 @@
-""
+"""
 Custom Decorators
 
 This module contains custom decorators for route protection and other utilities.
@@ -10,7 +10,7 @@ from werkzeug.exceptions import Forbidden
 
 # Role-based access control
 def role_required(*roles):
-    ""
+    """
     Decorator to restrict access to users with specific roles.
     
     Args:
@@ -51,7 +51,7 @@ def candidate_required(f):
 
 # Rate limiting
 def rate_limit(requests=100, window=15, by="endpoint"):
-    ""
+    """
     Decorator to implement rate limiting.
     
     Args:

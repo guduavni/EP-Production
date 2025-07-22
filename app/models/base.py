@@ -10,8 +10,8 @@ from mongoengine.base import BaseField
 from mongoengine.queryset import QuerySet
 from mongoengine.queryset.manager import queryset_manager
 
-# Import the database instance
-from app.models import db
+# Import the database instance from extensions
+from app.extensions import db
 
 class BaseQuerySet(QuerySet):
     """Custom QuerySet with additional methods."""

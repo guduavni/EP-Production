@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Bad Request - EP-Simulator{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-1 text-warning">400</h1>
+            <h2 class="mb-4">Bad Request</h2>
+            <p class="lead">The server could not understand your request.</p>
+            {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary">
+                <i class="fas fa-home me-2"></i>Return to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

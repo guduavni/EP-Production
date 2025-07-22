@@ -1,41 +1,39 @@
 import os
 from flask import Flask, render_template, redirect, url_for, flash
-from flask_login import LoginManager, current_user, login_user, logout_user, login_required
-from flask_mongoengine import MongoEngine
-from models import User, Assessment, TestScript, MediaFile, Report, ExamResult
-from admin_views import setup_admin
+from flask_login import current_user, login_user, logout_user, login_required
+from models import User
 from datetime import datetime
-import config
+from config import Config
+
+# Import extensions
+from app.extensions import db, login_manager
 
 def create_app():
     # Initialize Flask app
     app = Flask(__name__)
     
     # Load configuration
-    app.config.from_object(config.Config)
+    app.config.from_object(Config)
     
     # Initialize extensions
-    db = MongoEngine()
     db.init_app(app)
     
-    # Initialize login manager
-    login_manager = LoginManager()
+    # Configure login manager
     login_manager.init_app(app)
-    login_manager.login_view = 'auth.login'  # Updated to use blueprint name
+    login_manager.login_view = 'auth.login'
     
     @login_manager.user_loader
     def load_user(user_id):
         return User.objects(user_id=user_id).first()
     
-    # Register blueprints and routes
-    from auth import auth_bp
-    from main import main_bp
+    # Register blueprints
+    from app.auth.routes import auth_bp
+    from app.main.routes import main_bp
+    from app.admin import admin_bp
     
-    app.register_blueprint(auth_bp)
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)
-    
-    # Setup admin interface
-    setup_admin(app)
+    app.register_blueprint(admin_bp)
     
     # Root route
     @app.route('/')
@@ -44,8 +42,20 @@ def create_app():
             if current_user.role == 'admin':
                 return redirect(url_for('admin.index'))
             return redirect(url_for('main.dashboard'))
-        return redirect(url_for('auth.login'))
+        # Make sure we're using the correct template path
+        return render_template('index.html')
     
+    # Add CSP header to prevent mixed content issues
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' cdn.jsdelivr.net cdnjs.cloudflare.com; img-src 'self' data:; font-src 'self' cdnjs.cloudflare.com;"
+        return response
+        
+    # Context processor to make 'now' available in all templates
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.utcnow()}
+
     # Error handlers
     @app.errorhandler(404)
     def not_found_error(error):
@@ -59,4 +69,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, port=5002)
+    app.run(debug=True, port=5009)

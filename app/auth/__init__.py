@@ -7,12 +7,15 @@ from datetime import datetime
 
 # Local imports
 from ..extensions import db, login_manager
-from ..models import User
+from ..models.user import User
 from ..utils.email import send_email
 from .forms import LoginForm, RegistrationForm, ResetPasswordRequestForm, ResetPasswordForm, EditProfileForm
 
 # Create authentication blueprint
 auth_bp = Blueprint('auth', __name__)
+
+# Export the blueprint as 'bp' for compatibility
+bp = auth_bp
 
 def generate_confirmation_token(email):
     """Generate a confirmation token for email verification."""
@@ -66,15 +69,13 @@ def login():
         if current_user.role == 'admin':
             return redirect(url_for('admin.index'))
         return redirect(url_for('index'))
-        
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        remember = True if request.form.get('remember') else False
-        
-        if not email or not password:
-            flash('Please provide both email and password.', 'error')
-            return redirect(url_for('auth.login'))
+    
+    form = LoginForm()
+    
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
+        remember = form.remember_me.data
         
         user = User.objects(email=email).first()
         
@@ -93,7 +94,105 @@ def login():
             return redirect(next_page or url_for('admin.index'))
         return redirect(next_page or url_for('index'))
         
-    return render_template('login.html', title='Login')
+    from datetime import datetime
+    return render_template('auth/login.html', 
+                        title='Login', 
+                        form=form,
+                        now=datetime.utcnow())
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+        
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        # Check if user already exists
+        user = User.objects(email=form.email.data).first()
+        if user:
+            flash('Email already registered. Please use a different email.', 'danger')
+            return redirect(url_for('auth.register'))
+            
+        # Create new user
+        new_user = User(
+            email=form.email.data,
+            name=form.name.data,  # Using name field instead of first_name/last_name
+            password=generate_password_hash(form.password.data),
+            is_active=True  # Set to False if email confirmation is required
+        )
+        
+        # Save the user
+        new_user.save()
+        
+        flash('Registration successful! You can now log in.', 'success')
+        return redirect(url_for('auth.login'))
+        
+    from datetime import datetime
+    return render_template('auth/register.html', 
+                         title='Register', 
+                         form=form,
+                         now=datetime.utcnow())
+
+@auth_bp.route('/reset_password_request', methods=['GET', 'POST'])
+def reset_password_request():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    form = ResetPasswordRequestForm()
+    if form.validate_on_submit():
+        user = User.objects(email=form.email.data).first()
+        if user:
+            # Generate reset token
+            token = generate_confirmation_token(user.email)
+            reset_url = url_for('auth.reset_password', token=token, _external=True)
+            
+            # Send email with reset link
+            send_email(
+                'Reset Your Password',
+                sender=current_app.config['MAIL_DEFAULT_SENDER'],
+                recipients=[user.email],
+                text_body=render_template('email/reset_password.txt',
+                                       user=user, reset_url=reset_url),
+                html_body=render_template('email/reset_password.html',
+                                       user=user, reset_url=reset_url)
+            )
+        
+        flash('Check your email for the instructions to reset your password', 'info')
+        return redirect(url_for('auth.login'))
+    
+    from datetime import datetime
+    return render_template('auth/reset_password_request.html',
+                         title='Reset Password', 
+                         form=form,
+                         now=datetime.utcnow())
+
+@auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    email = confirm_token(token)
+    if not email:
+        flash('The reset link is invalid or has expired.', 'warning')
+        return redirect(url_for('auth.login'))
+    
+    user = User.objects(email=email).first()
+    if not user:
+        flash('User not found.', 'danger')
+        return redirect(url_for('auth.login'))
+    
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user.password = generate_password_hash(form.password.data)
+        user.save()
+        
+        flash('Your password has been reset. You can now log in with your new password.', 'success')
+        return redirect(url_for('auth.login'))
+    
+    from datetime import datetime
+    return render_template('auth/reset_password.html', 
+                         form=form,
+                         now=datetime.utcnow())
 
 @auth_bp.route('/logout')
 @login_required

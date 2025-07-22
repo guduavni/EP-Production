@@ -5,12 +5,15 @@ A streamlined version of the EP-Simulator application for testing and developmen
 """
 import os
 from datetime import datetime
+from uuid import uuid4
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from flask_bootstrap import Bootstrap4
-from flask_mongoengine import MongoEngine
+from flask_bootstrap import Bootstrap
+from mongoengine import connect
 from flask_wtf import FlaskForm
-from mongoengine import connect, DoesNotExist
+from flask_security import Security, UserMixin, RoleMixin
+from flask_security.datastore import MongoEngineUserDatastore
+from mongoengine import connect, DoesNotExist, Document, StringField, BooleanField, ListField, ReferenceField
 from datetime import datetime
 import os
 from models import User, ExamResult, MediaFile, TestScript
@@ -21,8 +24,39 @@ from wtforms.validators import DataRequired, Email, Length
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Initialize extensions
-db = MongoEngine()
 login_manager = LoginManager()
+
+# Define models for Flask-Security
+class Role(Document, RoleMixin):
+    name = StringField(required=True, unique=True)
+    description = StringField(max_length=255)
+
+class User(Document, UserMixin):
+    email = StringField(required=True, unique=True)
+    password = StringField(required=True)
+    active = BooleanField(default=True)
+    confirmed_at = DateTimeField()
+    roles = ListField(ReferenceField(Role), default=[])
+    fs_uniquifier = StringField(required=True, unique=True, default=lambda: str(uuid4()))
+    
+    # Required for Flask-Login
+    def get_id(self):
+        return str(self.id)
+    
+    @property
+    def is_active(self):
+        return self.active
+    
+    @property
+    def is_authenticated(self):
+        return True
+    
+    @property
+    def is_anonymous(self):
+        return False
+    
+    def has_role(self, role_name):
+        return role_name in [role.name for role in self.roles]
 
 # Forms
 class LoginForm(FlaskForm):
@@ -43,11 +77,50 @@ def create_app():
     
     # Configure MongoDB
     app.config['MONGODB_SETTINGS'] = {
-        'db': 'ep_simulator',
         'host': 'mongodb://localhost:27017/ep_simulator',
-        'alias': 'default',
         'connect': True
     }
+    
+    # Initialize MongoDB connection
+    connect(host='mongodb://localhost:27017/ep_simulator')
+    
+    # Initialize Bootstrap
+    Bootstrap(app)
+    
+    # Security configuration
+    app.config['SECURITY_PASSWORD_HASH'] = 'bcrypt'
+    app.config['SECURITY_PASSWORD_SALT'] = os.environ.get('SECURITY_PASSWORD_SALT', 'dev-password-salt')
+    app.config['SECURITY_REGISTERABLE'] = True
+    app.config['SECURITY_SEND_REGISTER_EMAIL'] = False
+    app.config['SECURITY_USERNAME_ENABLED'] = False
+    app.config['SECURITY_CONFIRMABLE'] = False
+    app.config['SECURITY_RECOVERABLE'] = True
+    app.config['SECURITY_TRACKABLE'] = True
+    app.config['SECURITY_CHANGEABLE'] = True
+    
+    # Setup Flask-Security
+    user_datastore = MongoEngineUserDatastore(User, Role)
+    security = Security(app, user_datastore)
+    
+    # Create a user to test with if none exists
+    with app.app_context():
+        if not hasattr(app, '_user_creation_attempted'):
+            app._user_creation_attempted = True
+            if not User.objects(email='admin@example.com').first():
+                user = user_datastore.create_user(
+                    email='admin@example.com',
+                    password=user_datastore.hash_password('password')
+                )
+                # Create admin role if it doesn't exist
+                if not Role.objects(name='admin').first():
+                    admin_role = Role(name='admin', description='Administrator')
+                    admin_role.save()
+                else:
+                    admin_role = Role.objects(name='admin').first()
+                
+                # Add admin role to user
+                user_datastore.add_role_to_user(user, admin_role)
+                user.save()
     
     # Create static folder if it doesn't exist
     static_folder = os.path.join(app.root_path, 'static')

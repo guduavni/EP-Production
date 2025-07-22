@@ -3,9 +3,12 @@ Main Blueprint
 
 This module contains the main application routes and error handlers.
 """
+import os
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import current_user, login_required
-from ..models import User, Assessment, Notification
+from ..models.user import User
+from ..models.assessment import Assessment
+from ..models.notification import Notification
 from ..utils.decorators import admin_required, examiner_required, candidate_required
 
 # Create main blueprint
@@ -14,14 +17,23 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 def index():
     """Home page route."""
-    if current_user.is_authenticated:
-        if current_user.is_admin:
-            return redirect(url_for('admin.dashboard'))
-        elif current_user.is_examiner:
-            return redirect(url_for('examiner.dashboard'))
-        else:
-            return redirect(url_for('candidate.dashboard'))
-    return render_template('main/index.html')
+    try:
+        if current_user.is_authenticated:
+            if current_user.is_admin:
+                return redirect(url_for('admin.dashboard'))
+            elif current_user.is_examiner:
+                return redirect(url_for('examiner.dashboard'))
+            else:
+                return redirect(url_for('candidate.dashboard'))
+        
+        # Try to render the template with full path
+        template_path = os.path.join('templates', 'main', 'index.html')
+        if not os.path.exists(template_path):
+            return f"Template not found at: {template_path}"
+            
+        return render_template('main/index.html')
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 @main_bp.route('/dashboard')
 @login_required
@@ -153,4 +165,8 @@ def internal_error(error):
         }), 500
     return render_template('errors/500.html'), 500
 
+# Export the blueprint as 'bp' for compatibility
+bp = main_bp
+
+# Import routes, forms, and utils
 from . import routes, forms, utils

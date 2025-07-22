@@ -13,15 +13,15 @@
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
                         {{ form.hidden_tag() }}
+                        {{ form.csrf_token }}
                         
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email Address</label>
+                            {{ form.email.label(class="form-label") }}
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="fas fa-envelope"></i>
                                 </span>
-                                <input type="email" class="form-control" id="email" name="email" 
-                                       value="{{ form.email.data or '' }}" required>
+                                {{ form.email(class="form-control" + (' is-invalid' if form.email.errors else '')) }}
                             </div>
                             {% if form.email.errors %}
                                 <div class="invalid-feedback d-block">
@@ -31,13 +31,12 @@
                         </div>
                         
                         <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
+                            {{ form.password.label(class="form-label") }}
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="fas fa-lock"></i>
                                 </span>
-                                <input type="password" class="form-control" id="password" 
-                                       name="password" required>
+                                {{ form.password(class="form-control" + (' is-invalid' if form.password.errors else '')) }}
                             </div>
                             {% if form.password.errors %}
                                 <div class="invalid-feedback d-block">
@@ -47,17 +46,21 @@
                         </div>
                         
                         <div class="mb-3 form-check">
-                            <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                            {{ form.remember_me(class="form-check-input") }}
+                            {{ form.remember_me.label(class="form-check-label") }}
+                        </div>
+                        
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
                             <label class="form-check-label" for="remember">Remember me</label>
-                            <a href="{{ url_for('auth.reset_password') }}" class="float-end">
+                            <a href="{{ url_for('auth.reset_password_request') }}" class="float-end">
                                 Forgot Password?
                             </a>
                         </div>
                         
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-sign-in-alt me-2"></i>Login
-                            </button>
+                            {{ form.submit(class="btn btn-primary w-100 py-2") }}
                         </div>
                     </form>
                 </div>
@@ -102,6 +105,4 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Font Awesome for icons -->
-<script src="https://kit.fontawesome.com/your-code.js" crossorigin="anonymous"></script>
 {% endblock %}

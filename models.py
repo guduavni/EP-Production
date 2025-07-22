@@ -29,7 +29,27 @@ class User(Document):
         self.password_hash = generate_password_hash(password)
     
     def verify_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        from werkzeug.security import check_password_hash
+        print(f"\n=== Password Verification ===")
+        print(f"Email: {self.email}")
+        print(f"Stored hash: {self.password_hash}")
+        print(f"Input password: {password}")
+        
+        # Try different hash methods
+        methods = ['pbkdf2:sha256', 'pbkdf2:sha1', 'sha256', 'md5']
+        
+        for method in methods:
+            try:
+                if check_password_hash(f"{method}${self.password_hash}", password):
+                    print(f"Password verified using method: {method}")
+                    return True
+            except:
+                continue
+                
+        # Try direct check
+        result = check_password_hash(self.password_hash, password)
+        print(f"Password check result: {result}")
+        return result
     
     # Flask-Login integration
     def get_id(self):

@@ -37,6 +37,20 @@ body {
     transition: all 0.3s ease;
 }
 
+/* Hide the second sign-in button in the navbar */
+.navbar .nav-link[href*='login'] {
+    display: none;
+}
+
+/* Hide the second sign-in button on the login page */
+.card .btn-primary {
+    display: none;
+}
+
+.card .btn-primary:first-child {
+    display: inline-block;
+}
+
 .btn-primary {
     background-color: #0d6efd;
     border-color: #0d6efd;

@@ -1,4 +1,4 @@
-""
+"""
 Utility functions and decorators for the main blueprint.
 """
 from functools import wraps
@@ -6,7 +6,7 @@ from flask import flash, redirect, url_for, abort
 from flask_login import current_user
 
 def admin_required(f):
-    ""
+    """
     Decorator to ensure the user has admin privileges.
     """
     @wraps(f)
@@ -18,7 +18,7 @@ def admin_required(f):
     return decorated_function
 
 def examiner_required(f):
-    ""
+    """
     Decorator to ensure the user has examiner or admin privileges.
     """
     @wraps(f)
@@ -30,7 +30,7 @@ def examiner_required(f):
     return decorated_function
 
 def candidate_required(f):
-    ""
+    """
     Decorator to ensure the user is a candidate.
     """
     @wraps(f)
@@ -42,7 +42,7 @@ def candidate_required(f):
     return decorated_function
 
 def check_assessment_ownership(assessment):
-    ""
+    """
     Check if the current user owns the assessment or is an admin/examiner.
     
     Args:
@@ -56,7 +56,7 @@ def check_assessment_ownership(assessment):
     return str(assessment.user.id) == str(current_user.id)
 
 def format_duration(seconds):
-    ""
+    """
     Format a duration in seconds to a human-readable string.
     
     Args:
@@ -72,7 +72,7 @@ def format_duration(seconds):
     return f"{minutes}:{seconds:02d}"
 
 def allowed_file(filename, allowed_extensions):
-    ""
+    """
     Check if a filename has an allowed extension.
     
     Args:

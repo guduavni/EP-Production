@@ -1,4 +1,4 @@
-""
+"""
 Audio Processing Utilities
 
 This module contains functions for processing audio files, including:
@@ -133,6 +133,104 @@ def analyze_audio_quality(audio_path: str) -> Dict[str, Any]:
         logger.error(f"Error analyzing audio quality: {str(e)}")
         return {}
 
+def extract_audio_features(audio_path: str) -> Dict[str, Any]:
+    """
+    Extract various audio features for analysis.
+    
+    Args:
+        audio_path: Path to the audio file
+        
+    Returns:
+        Dictionary containing audio features
+    """
+    try:
+        # Load audio file
+        y, sr = librosa.load(audio_path, sr=None)
+        
+        # Calculate various audio features
+        features = {}
+        
+        # Basic features
+        features['duration'] = float(librosa.get_duration(y=y, sr=sr))
+        features['sample_rate'] = int(sr)
+        
+        # Temporal features
+        features['rms_energy'] = float(np.sqrt(np.mean(y**2)))
+        features['zero_crossing_rate'] = float(np.mean(librosa.feature.zero_crossing_rate(y)))
+        
+        # Spectral features
+        spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
+        features['spectral_centroid_mean'] = float(np.mean(spectral_centroid))
+        features['spectral_centroid_std'] = float(np.std(spectral_centroid))
+        
+        spectral_bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr)
+        features['spectral_bandwidth_mean'] = float(np.mean(spectral_bandwidth))
+        
+        spectral_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)
+        features['spectral_rolloff_mean'] = float(np.mean(spectral_rolloff))
+        
+        # MFCCs (Mel-frequency cepstral coefficients)
+        mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        for i, mfcc in enumerate(mfccs):
+            features[f'mfcc_{i+1}_mean'] = float(np.mean(mfcc))
+            features[f'mfcc_{i+1}_std'] = float(np.std(mfcc))
+        
+        # Chroma features
+        chroma = librosa.feature.chroma_stft(y=y, sr=sr)
+        features['chroma_mean'] = float(np.mean(chroma))
+        features['chroma_std'] = float(np.std(chroma))
+        
+        # Mel spectrogram
+        mel_spec = librosa.feature.melspectrogram(y=y, sr=sr)
+        features['mel_spectrogram_mean'] = float(np.mean(mel_spec))
+        
+        return features
+        
+    except Exception as e:
+        logger.error(f"Error extracting audio features: {str(e)}")
+        return {}
+
+def analyze_pronunciation(audio_path: str, reference_text: str, language: str = 'en-US') -> Dict[str, Any]:
+    """
+    Analyze pronunciation quality by comparing audio to reference text.
+    
+    Args:
+        audio_path: Path to the audio file
+        reference_text: The expected text that was spoken
+        language: Language code for analysis (default: 'en-US')
+        
+    Returns:
+        Dictionary containing pronunciation analysis results
+    """
+    try:
+        # Transcribe the audio
+        transcription = transcribe_audio(audio_path, language=language)
+        
+        # Simple word error rate calculation
+        ref_words = set(reference_text.lower().split())
+        trans_words = set(transcription.lower().split())
+        
+        # Calculate word error rate (simplified)
+        correct_words = ref_words.intersection(trans_words)
+        total_words = len(ref_words.union(trans_words))
+        wer = 1 - (len(correct_words) / total_words) if total_words > 0 else 1.0
+        
+        # Basic pronunciation score (0-100 scale)
+        pronunciation_score = max(0, 100 * (1 - wer))
+        
+        return {
+            'transcription': transcription,
+            'word_error_rate': float(wer),
+            'pronunciation_score': float(pronunciation_score),
+            'correct_words': list(correct_words),
+            'missing_words': list(ref_words - trans_words),
+            'extra_words': list(trans_words - ref_words)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing pronunciation: {str(e)}")
+        return {}
+
 def process_audio_file(audio_path: str) -> Dict[str, Any]:
     """
     Process an audio file and return analysis results.
@@ -149,9 +247,13 @@ def process_audio_file(audio_path: str) -> Dict[str, Any]:
     # Analyze audio quality
     quality_metrics = analyze_audio_quality(audio_path)
     
+    # Extract audio features
+    audio_features = extract_audio_features(audio_path)
+    
     return {
         'transcription': transcription,
         'quality_metrics': quality_metrics,
+        'audio_features': audio_features,
         'word_count': len(transcription.split()) if transcription else 0,
         'language': 'en-US'  # Default language, can be made configurable
     }

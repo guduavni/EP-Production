@@ -1,4 +1,10 @@
+"""
+Role Model
+
+This module defines the Role model for role-based access control.
+"""
 from mongoengine import Document, StringField, ListField
+from flask import current_app
 
 class Role(Document):
     """
@@ -42,4 +48,11 @@ class Role(Document):
         for role_data in default_roles:
             if not cls.objects(name=role_data['name']).first():
                 cls(**role_data).save()
-                print(f"Created role: {role_data['name']}")
+                current_app.logger.info(f"Created role: {role_data['name']}")
+
+def setup_roles():
+    """Ensure that default roles exist in the database."""
+    Role.ensure_roles_exist()
+
+# Add the ensure_roles_exist method to the Role class
+Role.ensure_roles_exist = classmethod(Role.ensure_roles_exist)

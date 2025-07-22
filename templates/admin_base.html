@@ -2,6 +2,8 @@
 
 {% block head %}
 {{ super() }}
+<!-- Favicon -->
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
 <!-- Custom CSS for Admin -->
 <style>
     .admin-header {
