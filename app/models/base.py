@@ -13,6 +13,9 @@ from mongoengine.queryset.manager import queryset_manager
 # Import the database instance from extensions
 from app.extensions import db
 
+# Import models registry
+from .registry import register_model
+
 class BaseQuerySet(QuerySet):
     """Custom QuerySet with additional methods."""
     
@@ -33,6 +36,7 @@ class BaseQuerySet(QuerySet):
         return self.skip((page - 1) * per_page).limit(per_page)
 
 
+@register_model('BaseDocument')
 class BaseDocument(Document):
     """
     Base document with common fields and methods.

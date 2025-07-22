@@ -12,7 +12,11 @@ import uuid
 from datetime import datetime
 
 # Local imports
-from ..models import User, Assessment, Question, AudioRecording
+from ..models import get_model
+User = get_model('User')
+Assessment = get_model('Assessment')
+Question = get_model('Question')
+AudioRecording = get_model('AudioRecording')
 from ..utils.decorators import admin_required, examiner_required
 from ..utils.audio_processing import process_audio_file
 

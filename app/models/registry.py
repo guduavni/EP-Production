@@ -1,53 +1,82 @@
 """
-Model Registry
+Models Registry
 
-This module handles the registration of all models to avoid circular imports.
+This module provides a central registry for all models to avoid circular imports.
 """
-from mongoengine import Document
+from mongoengine.base import get_document
 
-# This will hold all registered models
-_registry = {}
+class ModelsRegistry:
+    _instance = None
+    _models = {}
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(ModelsRegistry, cls).__new__(cls)
+        return cls._instance
+    
+    def register(self, name, model):
+        """Register a model class with the given name."""
+        self._models[name] = model
+        return model
+    
+    def get_model(self, name):
+        """Get a model class by name."""
+        # First try to get from local registry
+        if name in self._models:
+            return self._models[name]
+        
+        # Then try to get from MongoEngine's registry
+        try:
+            return get_document(name)
+        except Exception:
+            # If not found, try to import the model
+            try:
+                # Import models dynamically to avoid circular imports
+                if name == 'Role':
+                    from .role import Role
+                    self._models[name] = Role
+                    return Role
+                elif name == 'User':
+                    from .user import User
+                    self._models[name] = User
+                    return User
+                elif name == 'Notification':
+                    from .notification import Notification
+                    self._models[name] = Notification
+                    return Notification
+                elif name == 'Assessment':
+                    from .assessment import Assessment
+                    self._models[name] = Assessment
+                    return Assessment
+                elif name == 'Question':
+                    from .assessment import Question
+                    self._models[name] = Question
+                    return Question
+                elif name == 'AudioRecording':
+                    from .assessment import AudioRecording
+                    self._models[name] = AudioRecording
+                    return AudioRecording
+            except ImportError as e:
+                raise ValueError(f"Model {name} not found: {str(e)}") from e
+    
+    def get_all_models(self):
+        """Get all registered models."""
+        return self._models.copy()
 
-def register_model(cls):
-    """Register a model class with the registry."""
-    if cls is not None and hasattr(cls, '__name__'):
-        _registry[cls.__name__] = cls
-    return cls
+# Create a singleton instance
+registry = ModelsRegistry()
+
+def register_model(name):
+    """Decorator to register a model class."""
+    def decorator(cls):
+        registry.register(name, cls)
+        return cls
+    return decorator
 
 def get_model(name):
-    """Get a registered model class by name."""
-    return _registry.get(name)
+    """Get a model class by name."""
+    return registry.get_model(name)
 
 def get_all_models():
     """Get all registered models."""
-    return _registry
-
-def clear_registry():
-    """Clear the model registry (for testing)."""
-    _registry.clear()
-
-# Import models in the correct order to avoid circular imports
-# Import base document first
-from .base import BaseDocument
-
-# Then import Role (no dependencies)
-from .role import Role
-
-# Then import User (depends on Role)
-from .user import User
-
-# Then import Notification (depends on User)
-from .notification import Notification
-
-# Finally import Assessment models (depend on User)
-from .assessment import Assessment, Question as AssessmentQuestion, AudioRecording as AssessmentAudioRecording
-
-# Register all models
-register_model(BaseDocument)
-register_model(Role)
-register_model(User)
-register_model(Notification)
-register_model(Assessment)
-register_model(AssessmentQuestion)
-register_model(AssessmentAudioRecording)
-register_model('User', User)
+    return registry.get_all_models()

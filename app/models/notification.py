@@ -41,8 +41,46 @@ class Notification(BaseDocument):
     PRIORITY_NORMAL = 2
     PRIORITY_HIGH = 3
     
-    # Fields - using string reference to avoid circular imports
-    user = LazyReferenceField('user.User', required=True, reverse_delete_rule=CASCADE, passthrough=True)
+    # Using string reference to avoid circular imports
+    # Using dbref=True to ensure proper reference handling
+    user = LazyReferenceField('User', required=True, passthrough=False, dbref=True, allow_none=False)
+    
+    def clean(self):
+        """Ensure required fields are set before validation."""
+        # Set default values if not provided
+        if not hasattr(self, 'is_read'):
+            self.is_read = False
+        if not hasattr(self, 'priority'):
+            self.priority = self.PRIORITY_NORMAL
+        if not hasattr(self, 'notification_type'):
+            self.notification_type = self.TYPE_INFO
+            
+    def save(self, *args, **kwargs):
+        """Override save to ensure clean is called and handle indexes."""
+        self.clean()
+        return super().save(*args, **kwargs)
+    
+    # Disable automatic registration of delete rules
+    def __init__(self, *args, **kwargs):
+        super(Notification, self).__init__(*args, **kwargs)
+        # Manually set up delete rules after all models are loaded
+        if not hasattr(self, '_delete_rules_setup'):
+            self._delete_rules_setup = True
+            from mongoengine import signals
+            signals.post_init.connect(self._setup_delete_rules, sender=self.__class__)
+    
+    def _setup_delete_rules(self, *args, **kwargs):
+        """Manually set up delete rules after all models are loaded."""
+        try:
+            from mongoengine import get_document
+            User = get_document('User')
+            if hasattr(self, 'user') and self.user:
+                self.user._meta['delete_rules'] = self.user._meta.get('delete_rules', {})
+                self.user._meta['delete_rules']['notifications'] = (self.__class__, 'CASCADE')
+        except Exception as e:
+            import logging
+            logging.error(f"Error setting up delete rules: {e}")
+    
     title = StringField(required=True, max_length=200)
     message = StringField(required=True)
     notification_type = StringField(choices=[
@@ -57,28 +95,38 @@ class Notification(BaseDocument):
     action_label = StringField(max_length=50)
     priority = IntField(default=PRIORITY_NORMAL, min_value=1, max_value=3)
     read_at = DateTimeField()
+    expires_at = DateTimeField()
     
-    # Meta options - using a dictionary to avoid class-level execution issues
+    # Meta options
     meta = {
         'collection': 'notifications',
         'indexes': [
             # Single field indexes
-            'user',
-            'is_read',
-            'notification_type',
-            'priority',
-            'created_at',
-            'read_at',
+            {'fields': ['user'], 'name': 'user_idx'},
+            {'fields': ['is_read'], 'name': 'is_read_idx'},
+            {'fields': ['created_at'], 'name': 'created_at_idx'},
+            {'fields': ['expires_at'], 'name': 'expires_at_ttl', 'expireAfterSeconds': 0},
+            {'fields': ['notification_type'], 'name': 'notification_type_idx'},
+            {'fields': ['priority'], 'name': 'priority_idx'},
             
-            # Compound indexes
-            [('user', 1), ('is_read', 1)],
+            # Compound indexes with explicit names
+            [('user', 1), ('is_read', 1)],  # Will be auto-named
             [('user', 1), ('created_at', -1)],
-            [('created_at', -1)],  # For sorting by creation date
+            [('created_at', -1)],
+            [('priority', -1), ('created_at', -1)],
+            [('is_read', 1), ('created_at', -1)],
             
-            # TTL index for auto-expiring notifications after 30 days
-            {'fields': ['created_at'], 'expireAfterSeconds': 60 * 60 * 24 * 30}
+            # Text index for search with explicit name
+            {
+                'fields': ['$title', '$message'],
+                'default_language': 'english',
+                'weights': {'title': 10, 'message': 5},
+                'name': 'notification_search_text'
+            }
         ],
-        'ordering': ['-created_at']
+        'ordering': ['-created_at'],
+        'strict': False,  # Allow dynamic fields
+        'auto_create_index': False  # Prevent automatic index creation
     }
     
     def mark_as_read(self):
@@ -169,3 +217,10 @@ class Notification(BaseDocument):
             List of notifications
         """
         return cls.objects(user=user).order_by('-created_at').limit(limit)
+
+# Export the model
+__all__ = ['Notification']
+
+# Register the model after it's defined
+from . import registry
+registry.register('Notification', Notification)

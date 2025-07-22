@@ -104,7 +104,17 @@ class MyAdminIndexView(AdminIndexView):
         if current_user.role != 'admin' or current_user.status != 'active':
             flash('You do not have permission to access the admin panel.', 'error')
             return redirect(url_for('index'))
-        return super(MyAdminIndexView, self).index()
+            
+        # Get statistics
+        from models import User, Assessment
+        stats = {
+            'user_count': User.objects.count(),
+            'exam_count': Assessment.objects.count(),
+            'active_exams': Assessment.objects(status='in_progress').count(),
+            'completed_exams': Assessment.objects(status='completed').count()
+        }
+        
+        return self.render('admin/index.html', stats=stats)
 
 def init_admin(app):
     admin = Admin(

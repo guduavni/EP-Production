@@ -7,18 +7,26 @@ including the Assessment model and its related models.
 from datetime import datetime
 from enum import Enum
 from mongoengine import (
-    EmbeddedDocument, EmbeddedDocumentField, ListField, 
-    StringField, FloatField, DateTimeField, IntField, DictField, BooleanField,
-    LazyReferenceField, PULL, CASCADE, Document, register_connection, get_connection
+    Document, EmbeddedDocument, 
+    StringField, DateTimeField, 
+    ListField, EmbeddedDocumentField,
+    ReferenceField, LazyReferenceField,
+    BooleanField, IntField, FloatField,
+    DictField, URLField, FileField
 )
+# Delete rule constants
+NULLIFY = 1
+CASCADE = 2
+DENY = 3
+DO_NOTHING = 4
+PULL = 5
+from mongoengine import register_connection, get_connection
 
 # Import base document first
 from .base import BaseDocument
 
 # Import the database instance from extensions
 from app.extensions import db
-
-# Import models using string references to avoid circular imports
 
 # Import enums first to avoid circular imports
 class QuestionType(Enum):
@@ -136,32 +144,44 @@ class Assessment(BaseDocument):
     meta = {
         'collection': 'assessments',
         'indexes': [
-            # Single field indexes
-            'candidate',
-            'examiner',
-            'status',
-            'test_type',
-            'scheduled_start_time',
-            'scheduled_end_time',
-            'is_practice',
-            'is_retake',
-            'assessment_date',
-            'expires_at',
-            'created_at',
-            'updated_at',
-            'completed_at',
+            # Explicitly named single field indexes
+            {'fields': ['created_by'], 'name': 'created_by_idx'},
+            {'fields': ['assigned_to'], 'name': 'assigned_to_idx', 'sparse': True},
+            {'fields': ['status'], 'name': 'status_idx'},
+            {'fields': ['test_type'], 'name': 'test_type_idx'},
+            {'fields': ['created_at'], 'name': 'created_at_idx'},
+            {'fields': ['expires_at'], 'name': 'expires_at_ttl', 'expireAfterSeconds': 0},
             
-            # TTL index for created_at
-            {'fields': ['created_at'], 'expireAfterSeconds': 60 * 60 * 24 * 365 * 5},  # 5 years
-            
-            # Compound indexes
-            [('candidate', 1), ('status', 1)],
-            [('examiner', 1), ('status', 1)],
-            [('test_type', 1), ('status', 1)],
-            [('is_practice', 1), ('status', 1)]
+            # Compound indexes with explicit names
+            {
+                'fields': ['created_by', 'status'],
+                'name': 'created_by_status_idx'
+            },
+            {
+                'fields': ['assigned_to', 'status'],
+                'name': 'assigned_to_status_idx',
+                'sparse': True
+            },
+            {
+                'fields': ['test_type', 'status'],
+                'name': 'test_type_status_idx'
+            },
+            # Text index for search
+            {
+                'fields': ['$title', '$description', '$feedback', '$examiner_notes'],
+                'default_language': 'english',
+                'weights': {
+                    'title': 10,
+                    'description': 5,
+                    'feedback': 5,
+                    'examiner_notes': 3
+                },
+                'name': 'assessment_search_text'
+            }
         ],
         'ordering': ['-created_at'],
-        'strict': False  # Allow dynamic fields
+        'strict': False,  # Allow dynamic fields
+        'auto_create_index': False  # Prevent automatic index creation
     }
     
     # Assessment status choices
@@ -174,9 +194,57 @@ class Assessment(BaseDocument):
     TEST_TYPE_CHOICES = (TEST_TYPE_OPI, TEST_TYPE_EAP, TEST_TYPE_LPE)
     
     # Relationships - using string references to avoid circular imports
-    candidate = LazyReferenceField('user.User', required=True, reverse_delete_rule=CASCADE, passthrough=True)
-    examiner = LazyReferenceField('user.User', reverse_delete_rule=CASCADE, required=False, passthrough=True)
-    previous_assessment = LazyReferenceField('assessment.Assessment', reverse_delete_rule=CASCADE, required=False, passthrough=True)
+    created_by = LazyReferenceField('User', required=True, passthrough=False, dbref=True, allow_none=False)
+    assigned_to = LazyReferenceField('User', required=False, passthrough=False, dbref=True, allow_none=True)
+    assigned_by = LazyReferenceField('User', required=False, passthrough=False, dbref=True, allow_none=True)
+    
+    # Disable automatic registration of delete rules
+    def clean(self):
+        """Ensure required fields are set before validation."""
+        # Set default values if not provided
+        if not hasattr(self, 'status'):
+            self.status = AssessmentStatus.DRAFT.value
+        if not hasattr(self, 'test_type'):
+            self.test_type = self.TEST_TYPE_OPI
+        if not hasattr(self, 'progress'):
+            self.progress = 0
+            
+        # Set timestamps
+        now = datetime.utcnow()
+        if not hasattr(self, 'created_at'):
+            self.created_at = now
+        self.updated_at = now
+            
+    def save(self, *args, **kwargs):
+        """Override save to ensure clean is called and handle indexes."""
+        self.clean()
+        return super().save(*args, **kwargs)
+    
+    def __init__(self, *args, **kwargs):
+        super(Assessment, self).__init__(*args, **kwargs)
+        # Manually set up delete rules after all models are loaded
+        if not hasattr(self, '_delete_rules_setup'):
+            self._delete_rules_setup = True
+            from mongoengine import signals
+            signals.post_init.connect(self._setup_delete_rules, sender=self.__class__)
+    
+    def _setup_delete_rules(self, *args, **kwargs):
+        """Manually set up delete rules after all models are loaded."""
+        try:
+            from mongoengine import get_document
+            User = get_document('User')
+            if hasattr(self, 'created_by') and self.created_by:
+                self.created_by._meta['delete_rules'] = self.created_by._meta.get('delete_rules', {})
+                self.created_by._meta['delete_rules']['created_assessments'] = (self.__class__, 'NULLIFY')
+            if hasattr(self, 'assigned_to') and self.assigned_to:
+                self.assigned_to._meta['delete_rules'] = self.assigned_to._meta.get('delete_rules', {})
+                self.assigned_to._meta['delete_rules']['assigned_assessments'] = (self.__class__, 'PULL')
+            if hasattr(self, 'assigned_by') and self.assigned_by:
+                self.assigned_by._meta['delete_rules'] = self.assigned_by._meta.get('delete_rules', {})
+                self.assigned_by._meta['delete_rules']['assigned_by_assessments'] = (self.__class__, 'DENY')
+        except Exception as e:
+            import logging
+            logging.error(f"Error setting up delete rules: {e}")
     
     # Assessment details
     title = StringField(required=True, max_length=200)
@@ -315,21 +383,33 @@ class Assessment(BaseDocument):
             if not self.overall_score:
                 self.calculate_overall_score()
             
-            # Update candidate's assessment history
-            if self.candidate:
-                self.candidate.update(add_to_set__completed_assessments=self)
-                self.candidate.save()
+            # Update user's assessment history if created_by is set
+            if self.created_by:
+                try:
+                    from .user import User
+                    user = User.objects.get(id=self.created_by.id)
+                    user.update(add_to_set__completed_assessments=self)
+                    user.save()
+                except Exception as e:
+                    import logging
+                    logging.error(f"Error updating user's assessment history: {e}")
             
-            # Notify examiner if applicable
-            if self.examiner:
-                notification = Notification(
-                    user=self.examiner,
-                    title=f"Assessment Completed: {self.title}",
-                    message=f"{self.candidate.get_full_name() or 'A candidate'} has completed the assessment.",
-                    notification_type='assessment_completed',
-                    related_document_id=str(self.id)
-                )
-                notification.save()
+            # Notify assigned_to user if applicable
+            if self.assigned_to and self.assigned_to != self.created_by:
+                try:
+                    from .notification import Notification
+                    user_name = self.created_by.get_full_name() if hasattr(self.created_by, 'get_full_name') else 'A user'
+                    notification = Notification(
+                        user=self.assigned_to,
+                        title=f"Assessment Completed: {self.title}",
+                        message=f"{user_name} has completed the assessment.",
+                        notification_type='assessment_completed',
+                        related_document_id=str(self.id)
+                    )
+                    notification.save()
+                except Exception as e:
+                    import logging
+                    logging.error(f"Error sending notification: {e}")
             
             self.save()
             return True
@@ -464,3 +544,12 @@ class Assessment(BaseDocument):
     def __str__(self):
         """String representation of the assessment."""
         return f"{self.title} - {self.status}"
+
+# Register the models after they're defined
+from . import registry
+registry.register('Question', Question)
+registry.register('AudioRecording', AudioRecording)
+registry.register('Assessment', Assessment)
+
+# Export the models
+__all__ = ['Assessment', 'Question', 'AudioRecording']

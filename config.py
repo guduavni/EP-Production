@@ -39,6 +39,36 @@ class Config:
     SECURITY_PASSWORD_SALT = os.environ.get('SECURITY_PASSWORD_SALT', 'dev-salt-please-change-in-production')
     SECURITY_PASSWORD_HASH = 'bcrypt'
     
+    # File upload settings
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif'}
+    
+    # Email settings
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'True') == 'True'
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'False') == 'True'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME', '')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', '')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@example.com')
+    MAIL_DEBUG = DEBUG
+    MAIL_SUPPRESS_SEND = TESTING
+
+    # Trainee settings
+    TRAINEE_STATUSES = [
+        ('active', 'פעיל'),
+        ('on_hold', 'בהמתנה'),
+        ('completed', 'הושלם'),
+        ('dropped', 'נשר')
+    ]
+    
+    TRAINING_PROGRAMS = [
+        ('basic', 'קורס בסיסי'),
+        ('advanced', 'קורס מתקדם'),
+        ('specialized', 'הכשרה מיוחדת')
+    ]
+    
     # CSRF settings
     WTF_CSRF_ENABLED = False  # Disable CSRF for testing
     

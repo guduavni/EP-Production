@@ -42,17 +42,31 @@ class Role(Document):
                 'name': 'user',
                 'description': 'Regular user with basic access',
                 'permissions': ['basic']
+            },
+            {
+                'name': 'examiner',
+                'description': 'Examiner with access to conduct tests',
+                'permissions': ['conduct_tests', 'view_reports']
+            },
+            {
+                'name': 'candidate',
+                'description': 'Candidate taking tests',
+                'permissions': ['take_tests']
             }
         ]
 
         for role_data in default_roles:
             if not cls.objects(name=role_data['name']).first():
                 cls(**role_data).save()
-                current_app.logger.info(f"Created role: {role_data['name']}")
+                current_app.logger.info(f'Created role: {role_data["name"]}')
 
+# Register the model after it's defined
+from . import registry
+registry.register('Role', Role)
+
+# Export the model
+__all__ = ['Role']
+
+# Ensure that default roles exist in the database
 def setup_roles():
-    """Ensure that default roles exist in the database."""
     Role.ensure_roles_exist()
-
-# Add the ensure_roles_exist method to the Role class
-Role.ensure_roles_exist = classmethod(Role.ensure_roles_exist)

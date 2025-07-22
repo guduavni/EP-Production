@@ -52,6 +52,13 @@
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                        {% if current_user.is_admin %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin.index') }}">
+                                <i class="fas fa-cog me-1"></i> ניהול
+                            </a>
+                        </li>
+                        {% endif %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('main.profile') }}">
                                 <i class="fas fa-user me-1"></i> {{ current_user.email }}

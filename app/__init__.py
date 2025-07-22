@@ -8,7 +8,7 @@ the Flask application instance.
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask, current_app
+from flask import Flask, current_app, session
 from flask_security import Security
 from bson import ObjectId
 from config import Config
@@ -25,10 +25,23 @@ from .extensions import (
     babel, 
     assets_env,
     init_extensions,
-    configure_assets
+    configure_assets,
+    csrf
 )
 
+# Import email service
+from .services import email_service
+
 # Import models will be done in create_app to ensure proper context
+
+# Import blueprints
+from .main import bp as main_bp
+from .auth import bp as auth_bp
+from .admin import bp as admin_bp
+
+# Import test routes (only in development)
+if os.environ.get('FLASK_ENV') == 'development':
+    from .tests.test_email import test_bp
 
 # Initialize Flask-Security with None for now, will be set in create_app
 user_datastore = None
@@ -39,6 +52,11 @@ def create_app(config_name=None):
     # Create the Flask application with explicit template folder
     template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
     app = Flask(__name__, template_folder=template_dir)
+    
+    # Configure CSRF protection
+    app.config['WTF_CSRF_ENABLED'] = True
+    app.config['WTF_CSRF_SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-for-testing')
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-for-testing')
     
     # Load configuration
     if config_name is None:
@@ -67,22 +85,51 @@ def create_app(config_name=None):
     # Set up login manager
     @login_manager.user_loader
     def load_user(user_id):
-        from .models.user import User
+        User = get_model('User')
         return User.objects(id=user_id).first()
     
     # Initialize all extensions first
     init_extensions(app)
     
-    # Initialize database and models
+    # Configure assets
+    configure_assets(assets_env)
+    
+    # Ensure CSRF token is available in all templates
+    @app.context_processor
+    def inject_csrf_token():
+        from flask_wtf.csrf import generate_csrf
+        return dict(csrf_token=generate_csrf)
+    
+    # Import models after extensions are initialized
+    from .models import registry, get_model
+    
+    # Initialize the database
     with app.app_context():
+        # Get models from registry
+        User = get_model('User')
+        Role = get_model('Role')
+        Notification = get_model('Notification')
+        Assessment = get_model('Assessment')
+        
+        # Create indexes
         try:
-            # Import models after extensions are initialized
-            from .models.role import Role
-            from .models.user import User
+            User.ensure_indexes()
+            Role.ensure_indexes()
+            Notification.ensure_indexes()
+            Assessment.ensure_indexes()
+            app.logger.info("Successfully created all indexes")
+        except Exception as e:
+            app.logger.error(f"Error creating indexes: {e}")
+            # Don't raise here, as some indexes might already exist
             
-            # Ensure default roles exist
+        # Ensure default roles exist
+        try:
             Role.ensure_roles_exist()
+        except Exception as e:
+            app.logger.error(f"Error creating default roles: {e}")
+            # Don't raise here, as some roles might already exist
             
+        try:
             # Ensure admin role exists
             admin_role = Role.objects(name='admin').first()
             if not admin_role:
@@ -115,8 +162,8 @@ def create_app(config_name=None):
                 if admin_role not in admin_user.roles:
                     admin_user.roles.append(admin_role)
                     admin_user.save()
-                    app.logger.info('Updated existing user with admin role')
-                
+                    app.logger.info('Updated admin user with admin role')
+                    
         except Exception as e:
             app.logger.error(f'Error initializing database: {str(e)}')
             if app.debug:
@@ -124,14 +171,13 @@ def create_app(config_name=None):
     
     # Register blueprints
     def register_blueprints(app):
-        from .main import bp as main_bp
         app.register_blueprint(main_bp)
-        
-        from .auth import bp as auth_bp
         app.register_blueprint(auth_bp, url_prefix='/auth')
-        
-        from .admin import bp as admin_bp
         app.register_blueprint(admin_bp, url_prefix='/admin')
+        
+        # Register test routes (only in development)
+        if os.environ.get('FLASK_ENV') == 'development':
+            app.register_blueprint(test_bp, url_prefix='/test')
     
     register_blueprints(app)
     

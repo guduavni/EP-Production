@@ -7,7 +7,9 @@ dashboard, and other core functionality.
 from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
 from . import main_bp
-from ..models import User, Assessment
+from ..models import get_model
+User = get_model('User')
+Assessment = get_model('Assessment')
 from ..utils.decorators import admin_required, examiner_required
 
 @main_bp.route('/')

@@ -15,12 +15,15 @@ from flask_principal import Principal, Permission, RoleNeed
 from flask_babel import Babel
 from flask_assets import Environment, Bundle
 from flask_mongoengine import MongoEngine
+from flask_wtf.csrf import CSRFProtect
 
 # Initialize extensions without any configuration
 db = MongoEngine()
 login_manager = LoginManager()
 mail = Mail()
 cache = Cache()
+# Initialize CSRF with default settings
+csrf = CSRFProtect()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
@@ -45,6 +48,19 @@ def get_locale():
     return session.get('language', 'en')
 
 babel.localeselector = get_locale
+
+def import_models():
+    """Import all models after db is initialized."""
+    # Import models in the correct order to avoid circular imports
+    from .models.base import BaseDocument
+    from .models.role import Role
+    from .models.user import User
+    from .models.assessment import Assessment, Question, AudioRecording
+    from .models.notification import Notification
+    
+    # Get all registered models from the registry
+    from .models.registry import registry as models_registry
+    return models_registry.get_all_models()
 
 # Define permissions
 admin_permission = Permission(RoleNeed('admin'))
@@ -95,6 +111,12 @@ def init_extensions(app):
         
         # Initialize Flask-MongoEngine first
         db.init_app(app)
+        
+        # Import models after db is initialized
+        models = import_models()
+        
+        # Make models available in app context
+        app.extensions['models'] = models
         app.logger.info("Initialized Flask-MongoEngine")
         
         # Initialize models after initializing the database
@@ -216,27 +238,28 @@ def init_extensions(app):
 
 def configure_assets(assets_env):
     """Configure web assets."""
-    # JavaScript bundles
-    js_libs = Bundle(
-        'js/vendor/jquery-3.6.0.min.js',
-        'js/vendor/bootstrap.bundle.min.js',
-        'js/vendor/popper.min.js',
-        'js/vendor/select2.min.js',
-        'js/vendor/chart.min.js',
-        output='gen/packed.js',
-        filters='jsmin'
-    )
+    # Check if bundles are already registered
+    if 'js_all' not in assets_env:
+        # JavaScript bundles
+        js_libs = Bundle(
+            'js/vendor/jquery-3.6.0.min.js',
+            'js/vendor/bootstrap.bundle.min.js',
+            'js/vendor/popper.min.js',
+            'js/vendor/select2.min.js',
+            'js/vendor/chart.min.js',
+            output='gen/packed.js',
+            filters='jsmin'
+        )
+        assets_env.register('js_all', js_libs)
     
-    # CSS bundles
-    css_libs = Bundle(
-        'css/vendor/bootstrap.min.css',
-        'css/vendor/select2.min.css',
-        'css/vendor/select2-bootstrap4.min.css',
-        'css/main.css',
-        output='gen/packed.css',
-        filters='cssmin'
-    )
-    
-    # Register assets
-    assets_env.register('js_all', js_libs)
-    assets_env.register('css_all', css_libs)
+    if 'css_all' not in assets_env:
+        # CSS bundles
+        css_libs = Bundle(
+            'css/vendor/bootstrap.min.css',
+            'css/vendor/select2.min.css',
+            'css/vendor/select2-bootstrap4.min.css',
+            'css/main.css',
+            output='gen/packed.css',
+            filters='cssmin'
+        )
+        assets_env.register('css_all', css_libs)

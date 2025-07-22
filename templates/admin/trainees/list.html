@@ -1,0 +1,159 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}ניהול חניכים{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">ניהול חניכים</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-users me-1"></i>
+            רשימת חניכים
+        </div>
+        <div class="card-body">
+            <!-- Filters -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">סטטוס</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="all" {% if status == 'all' %}selected{% endif %}>הכל</option>
+                                <option value="active" {% if status == 'active' %}selected{% endif %}>פעיל</option>
+                                <option value="completed" {% if status == 'completed' %}selected{% endif %}>הושלם</option>
+                                <option value="dropped" {% if status == 'dropped' %}selected{% endif %}>נשר</option>
+                                <option value="on_hold" {% if status == 'on_hold' %}selected{% endif %}>בהמתנה</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="program" class="form-label">תוכנית הכשרה</label>
+                            <select class="form-select" id="program" name="program">
+                                <option value="all" {% if program == 'all' %}selected{% endif %}>הכל</option>
+                                {% for prog in programs %}
+                                <option value="{{ prog }}" {% if program == prog %}selected{% endif %}>{{ prog }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">חיפוש</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="search" name="search" value="{{ search }}" placeholder="חפש לפי שם...">
+                                <button class="btn btn-outline-secondary" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <a href="{{ url_for('admin.trainee.add_trainee') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-plus me-1"></i> הוסף חניך
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Trainees Table -->
+            <div class="table-responsive">
+                <table class="table table-hover" id="traineesTable">
+                    <thead>
+                        <tr>
+                            <th>שם מלא</th>
+                            <th>ת.ז</th>
+                            <th>תוכנית הכשרה</th>
+                            <th>תאריך התחלה</th>
+                            <th>סטטוס</th>
+                            <th>פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trainee in trainees %}
+                        <tr>
+                            <td>{{ trainee.user.name }}</td>
+                            <td>{{ trainee.id_number }}</td>
+                            <td>{{ trainee.training_program }}</td>
+                            <td>{{ trainee.start_date.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if trainee.status == 'active' else 'secondary' if trainee.status == 'completed' else 'warning' if trainee.status == 'on_hold' else 'danger' }}">
+                                    {{ 'פעיל' if trainee.status == 'active' else 'הושלם' if trainee.status == 'completed' else 'בהמתנה' if trainee.status == 'on_hold' else 'נשר' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('admin.trainee.view_trainee', trainee_id=trainee.id) }}" class="btn btn-sm btn-info" title="צפה">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('admin.trainee.edit_trainee', trainee_id=trainee.id) }}" class="btn btn-sm btn-warning" title="ערוך">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger delete-trainee" 
+                                            data-id="{{ trainee.id }}" 
+                                            data-name="{{ trainee.user.name }}"
+                                            title="מחק">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">לא נמצאו חניכים</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">מחיקת חניך</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>האם אתה בטוח שברצונך למחוק את החניך <strong id="traineeName"></strong>?</p>
+                <p class="text-danger">פעולה זו תמחק את כל הנתונים הקשורים לחניך ולא תתאם שחזור.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+                <form id="deleteForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">מחק</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Initialize DataTable
+    $(document).ready(function() {
+        $('#traineesTable').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Hebrew.json"
+            },
+            "order": [[3, "desc"]] // Sort by start date by default
+        });
+        
+        // Handle delete button click
+        $('.delete-trainee').on('click', function() {
+            const traineeId = $(this).data('id');
+            const traineeName = $(this).data('name');
+            const deleteUrl = "{{ url_for('admin.trainee.delete_trainee', trainee_id='') }}" + traineeId;
+            
+            $('#traineeName').text(traineeName);
+            $('#deleteForm').attr('action', deleteUrl);
+            
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            deleteModal.show();
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,267 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}פרטי חניך - {{ trainee.user.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mt-4">פרטי חניך</h1>
+        <div>
+            <a href="{{ url_for('admin.trainee.edit_trainee', trainee_id=trainee.id) }}" class="btn btn-warning">
+                <i class="fas fa-edit me-1"></i> ערוך
+            </a>
+            <a href="{{ url_for('admin.trainee.list_trainees') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right me-1"></i> חזור לרשימה
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-4">
+            <!-- Profile Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">פרופיל אישי</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <img src="{{ url_for('static', filename='img/default-avatar.png') }}" 
+                             alt="{{ trainee.user.name }}" 
+                             class="rounded-circle" 
+                             style="width: 150px; height: 150px; object-fit: cover;">
+                    </div>
+                    <h4>{{ trainee.user.name }}</h4>
+                    <p class="text-muted">{{ trainee.user.email }}</p>
+                    
+                    <div class="d-flex justify-content-center mb-3">
+                        <span class="badge bg-{{ 'success' if trainee.status == 'active' else 'secondary' if trainee.status == 'completed' else 'warning' if trainee.status == 'on_hold' else 'danger' }} fs-6">
+                            {{ 'פעיל' if trainee.status == 'active' else 'הושלם' if trainee.status == 'completed' else 'בהמתנה' if trainee.status == 'on_hold' else 'נשר' }}
+                        </span>
+                    </div>
+                    
+                    <div class="d-flex justify-content-center">
+                        {% set new_status = 'inactive' if trainee.status == 'active' else 'active' %}
+                        <button type="button" 
+                                class="btn btn-sm btn-{{ 'danger' if trainee.status == 'active' else 'success' }} me-2"
+                                onclick="updateStatus('{{ trainee.id }}', '{{ new_status }}')">
+                            {{ 'השהה' if trainee.status == 'active' else 'הפעל' }}
+                        </button>
+                        <a href="#" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="fas fa-envelope"></i>
+                        </a>
+                        <a href="#" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-print"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Emergency Contact -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">אנשי קשר לחירום</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>שם:</strong> {{ trainee.emergency_contact_name }}</p>
+                    <p class="mb-1"><strong>טלפון:</strong> {{ trainee.emergency_contact_phone }}</p>
+                    <p class="mb-0"><strong>קרבה:</strong> {{ trainee.emergency_contact_relation }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <!-- Trainee Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">פרטים אישיים</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>תעודת זהות:</strong> {{ trainee.id_number }}</p>
+                            <p><strong>תאריך לידה:</strong> {{ trainee.date_of_birth.strftime('%d/%m/%Y') }}</p>
+                            <p><strong>טלפון:</strong> {{ trainee.phone }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>כתובת:</strong> {{ trainee.address }}</p>
+                            <p><strong>עיר:</strong> {{ trainee.city }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Training Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">פרטי הכשרה</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>תוכנית הכשרה:</strong> {{ trainee.training_program }}</p>
+                            <p><strong>תאריך התחלה:</strong> {{ trainee.start_date.strftime('%d/%m/%Y') }}</p>
+                            {% if trainee.end_date %}
+                            <p><strong>תאריך סיום:</strong> {{ trainee.end_date.strftime('%d/%m/%Y') }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>סטטוס:</strong> 
+                                <span class="badge bg-{{ 'success' if trainee.status == 'active' else 'secondary' if trainee.status == 'completed' else 'warning' if trainee.status == 'on_hold' else 'danger' }}">
+                                    {{ 'פעיל' if trainee.status == 'active' else 'הושלם' if trainee.status == 'completed' else 'בהמתנה' if trainee.status == 'on_hold' else 'נשר' }}
+                                </span>
+                            </p>
+                            <p><strong>נרשם בתאריך:</strong> {{ trainee.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>עודכן לאחרונה:</strong> {{ trainee.updated_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Documents -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">מסמכים</h5>
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
+                        <i class="fas fa-upload me-1"></i> העלאת מסמך
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if trainee.documents %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>שם קובץ</th>
+                                    <th>תאריך העלאה</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in trainee.documents %}
+                                <tr>
+                                    <td>{{ doc.split('/')[-1] }}</td>
+                                    <td>לא זמין</td>
+                                    <td>
+                                        <a href="{{ url_for('static', filename=doc) }}" 
+                                           class="btn btn-sm btn-info me-1" 
+                                           target="_blank"
+                                           title="צפה">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('static', filename=doc) }}" 
+                                           class="btn btn-sm btn-secondary me-1" 
+                                           download
+                                           title="הורד">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-danger delete-document" 
+                                                data-path="{{ doc }}"
+                                                title="מחק">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center my-4">לא הועלו מסמכים עדיין</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Document Modal -->
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1" aria-labelledby="uploadDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadDocumentModalLabel">העלאת מסמך חדש</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('admin.trainee.edit_trainee', trainee_id=trainee.id) }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="document" class="form-label">בחר קובץ</label>
+                        <input class="form-control" type="file" id="document" name="documents" multiple>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+                    <button type="submit" class="btn btn-primary">העלה</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Document Confirmation Modal -->
+<div class="modal fade" id="deleteDocumentModal" tabindex="-1" aria-labelledby="deleteDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteDocumentModalLabel">מחיקת מסמך</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>האם אתה בטוח שברצונך למחוק את המסמך <strong id="documentName"></strong>?</p>
+                <p class="text-danger">לא תוכל לשחזר את הפעולה הזו.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+                <form id="deleteDocumentForm" method="POST" action="">
+                    <input type="hidden" name="document_path" id="documentPath">
+                    <button type="submit" class="btn btn-danger">מחק</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Handle document deletion
+    $('.delete-document').on('click', function() {
+        const docPath = $(this).data('path');
+        const docName = docPath.split('/').pop();
+        const deleteUrl = "{{ url_for('admin.trainee.delete_document', trainee_id=trainee.id) }}";
+        
+        $('#documentName').text(docName);
+        $('#documentPath').val(docPath);
+        $('#deleteDocumentForm').attr('action', deleteUrl);
+        
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteDocumentModal'));
+        deleteModal.show();
+    });
+    
+    // Update trainee status
+    function updateStatus(traineeId, status) {
+        fetch(`/admin/trainees/${traineeId}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: `status=${status}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('אירעה שגיאה בעדכון הסטטוס');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('אירעה שגיאה בעדכון הסטטוס');
+        });
+    }
+</script>
+{% endblock %}

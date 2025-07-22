@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+# Password hashing is now handled by the User model
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from functools import wraps
 from datetime import datetime
@@ -79,7 +79,7 @@ def login():
         
         user = User.objects(email=email).first()
         
-        if not user or not check_password_hash(user.password, password):
+        if not user or not user.check_password(password):
             flash('Invalid email or password. Please try again.', 'error')
             return redirect(url_for('auth.login'))
         
@@ -90,8 +90,8 @@ def login():
         login_user(user, remember=remember)
         next_page = request.args.get('next')
         
-        if user.role == 'admin':
-            return redirect(next_page or url_for('admin.index'))
+        if user.is_admin:
+            return redirect(next_page or url_for('admin.users'))
         return redirect(next_page or url_for('index'))
         
     from datetime import datetime
@@ -117,9 +117,9 @@ def register():
         new_user = User(
             email=form.email.data,
             name=form.name.data,  # Using name field instead of first_name/last_name
-            password=generate_password_hash(form.password.data),
             is_active=True  # Set to False if email confirmation is required
         )
+        new_user.set_password(form.password.data)  # Set password using the proper method
         
         # Save the user
         new_user.save()
@@ -183,7 +183,7 @@ def reset_password(token):
     
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        user.password = generate_password_hash(form.password.data)
+        user.set_password(form.password.data)
         user.save()
         
         flash('Your password has been reset. You can now log in with your new password.', 'success')

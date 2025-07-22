@@ -1,0 +1,213 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}הוסף חניך חדש{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mt-4">הוסף חניך חדש</h1>
+        <div>
+            <a href="{{ url_for('admin.trainee.list_trainees') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right me-1"></i> ביטול
+            </a>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-plus me-1"></i>
+            פרטי חניך חדש
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data" id="traineeForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <ul class="nav nav-tabs mb-4" id="traineeTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab" aria-controls="personal" aria-selected="true">
+                            פרטים אישיים
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="training-tab" data-bs-toggle="tab" data-bs-target="#training" type="button" role="tab" aria-controls="training" aria-selected="false">
+                            פרטי הכשרה
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab" aria-controls="documents" aria-selected="false">
+                            מסמכים
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="traineeTabsContent">
+                    <!-- Personal Information Tab -->
+                    <div class="tab-pane fade show active" id="personal" role="tabpanel" aria-labelledby="personal-tab">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="user_id" class="form-label">משתמש <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="user_id" name="user_id" required>
+                                        <option value="">בחר משתמש</option>
+                                        {% for user in users %}
+                                        <option value="{{ user.id }}">{{ user.full_name }} ({{ user.email }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="id_number" class="form-label">תעודת זהות <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="id_number" name="id_number" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">טלפון <span class="text-danger">*</span></label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="address" class="form-label">כתובת <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="address" name="address" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="birth_date" class="form-label">תאריך לידה <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="birth_date" name="birth_date" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="gender" class="form-label">מין <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="gender" name="gender" required>
+                                        <option value="">בחר מין</option>
+                                        <option value="male">זכר</option>
+                                        <option value="female">נקבה</option>
+                                        <option value="other">אחר</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Information Tab -->
+                    <div class="tab-pane fade" id="training" role="tabpanel" aria-labelledby="training-tab">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="training_start_date" class="form-label">תאריך תחילת הכשרה</label>
+                                    <input type="date" class="form-control" id="training_start_date" name="training_start_date">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="training_end_date" class="form-label">תאריך סיום צפוי</label>
+                                    <input type="date" class="form-control" id="training_end_date" name="training_end_date">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">סטטוס הכשרה</label>
+                                    <select class="form-select" id="status" name="status">
+                                        <option value="active">פעיל</option>
+                                        <option value="on_hold">בהמתנה</option>
+                                        <option value="completed">הושלם</option>
+                                        <option value="dropped">נשר</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">הערות</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documents Tab -->
+                    <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">
+                        <div class="mb-3">
+                            <label for="documents" class="form-label">העלאת מסמכים</label>
+                            <input class="form-control" type="file" id="documents" name="documents" multiple>
+                            <div class="form-text">ניתן לבחור מספר קבצים להעלאה בו זמנית</div>
+                        </div>
+                        
+                        <div id="documentsList" class="mt-3">
+                            <p class="text-muted">אין מסמכים להצגה</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> שמור חניך
+                        </button>
+                        <a href="{{ url_for('admin.trainee.list_trainees') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i> ביטול
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Initialize form validation
+        $("#traineeForm").validate({
+            rules: {
+                user_id: "required",
+                id_number: "required",
+                phone: "required",
+                address: "required",
+                birth_date: "required",
+                gender: "required"
+            },
+            messages: {
+                user_id: "נא לבחור משתמש",
+                id_number: "נא להזין תעודת זהות",
+                phone: "נא להזין מספר טלפון",
+                address: "נא להזין כתובת",
+                birth_date: "נא לבחור תאריך לידה",
+                gender: "נא לבחור מין"
+            },
+            errorElement: 'div',
+            errorPlacement: function(error, element) {
+                error.addClass('invalid-feedback');
+                error.insertAfter(element);
+            },
+            highlight: function(element, errorClass, validClass) {
+                $(element).addClass('is-invalid');
+            },
+            unhighlight: function(element, errorClass, validClass) {
+                $(element).removeClass('is-invalid');
+            }
+        });
+        
+        // Preview selected files
+        $('#documents').on('change', function() {
+            const files = this.files;
+            const documentsList = $('#documentsList');
+            
+            if (files.length > 0) {
+                let html = '<div class="list-group">';
+                for (let i = 0; i < files.length; i++) {
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>${files[i].name}</span>
+                            <span class="badge bg-primary rounded-pill">${(files[i].size / 1024).toFixed(2)} KB</span>
+                        </div>`;
+                }
+                html += '</div>';
+                documentsList.html(html);
+            } else {
+                documentsList.html('<p class="text-muted">אין מסמכים להצגה</p>');
+            }
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

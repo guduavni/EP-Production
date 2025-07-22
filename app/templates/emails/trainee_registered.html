@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            direction: rtl;
+        }
+        .header {
+            background-color: #4a6fa5;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .content {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #4a6fa5;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #777;
+            text-align: center;
+        }
+        .trainee-details {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>נרשם חניך חדש</h1>
+    </div>
+    <div class="content">
+        <p>שלום,</p>
+        <p>נרשם חניך חדש למערכת. להלן הפרטים:</p>
+        
+        <div class="trainee-details">
+            <h3>פרטי חניך:</h3>
+            <p><strong>שם מלא:</strong> {{ trainee.full_name }}</p>
+            <p><strong>תעודת זהות:</strong> {{ trainee.id_number }}</p>
+            <p><strong>טלפון:</strong> {{ trainee.phone }}</p>
+            <p><strong>אימייל:</strong> {{ trainee.email }}</p>
+            <p><strong>תאריך לידה:</strong> {{ trainee.birth_date.strftime('%d/%m/%Y') if trainee.birth_date else 'לא צוין' }}</p>
+        </div>
+        
+        <p>ניתן לצפות בפרטי החניך במערכת הניהול.</p>
+        
+        <p>בברכה,<br>צוות EP Simulator</p>
+    </div>
+    <div class="footer">
+        <p>© 2025 EP Simulator. כל הזכויות שמורות.</p>
+    </div>
+</body>
+</html>

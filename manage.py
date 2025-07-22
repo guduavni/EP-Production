@@ -1,6 +1,6 @@
 from flask_script import Manager
 from app import create_app
-from models import User, db
+from models import User, Role, db
 from werkzeug.security import generate_password_hash
 
 app = create_app()
@@ -12,21 +12,44 @@ def create_admin():
     email = "admin@ep.com"
     password = "admin123"
     
-    if User.objects(email=email).first():
-        print(f"User {email} already exists")
+    # Ensure roles exist
+    Role.ensure_roles_exist()
+    
+    # Get admin role
+    admin_role = Role.get_by_name('admin')
+    if not admin_role:
+        print("Error: Could not find admin role")
         return
     
-    # Create admin user
-    admin = User(
+    # Check if user already exists
+    admin_user = User.objects(email=email).first()
+    if admin_user:
+        print(f"User {email} already exists")
+        # Ensure the user has the admin role
+        if admin_role not in admin_user.roles:
+            admin_user.roles.append(admin_role)
+            admin_user.save()
+            print(f"Added admin role to existing user: {email}")
+        return
+    
+    # Create new admin user
+    admin_user = User(
         email=email,
         first_name="Admin",
         last_name="User",
-        role="admin"
+        name="Admin User",
+        is_active=True,
+        email_verified=True
     )
     
-    # Set password directly using the same method as in User model
-    admin.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
-    admin.save()
+    # Set password
+    admin_user.set_password(password)
+    
+    # Add admin role
+    admin_user.roles = [admin_role]
+    
+    # Save the user
+    admin_user.save()
     
     print(f"Created admin user: {email}")
     print(f"Password: {password}")
@@ -37,8 +60,9 @@ def list_users():
     users = User.objects()
     print(f"Found {users.count()} users:")
     for user in users:
-        print(f"- {user.email} (ID: {user.id}, Role: {user.role})")
-        print(f"  Password hash: {user.password_hash}")
+        role_names = [role.name for role in user.roles] if hasattr(user, 'roles') else []
+        print(f"- {user.email} (ID: {user.id}, Roles: {', '.join(role_names) if role_names else 'None'})")
+        print(f"  Active: {user.is_active}, Verified: {user.email_verified}")
 
 if __name__ == "__main__":
     manager.run()

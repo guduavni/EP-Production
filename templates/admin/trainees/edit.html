@@ -1,0 +1,352 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}{{ 'ערוך חניך' if trainee else 'הוסף חניך חדש' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mt-4">{{ 'ערוך חניך' if trainee else 'הוסף חניך חדש' }}</h1>
+        <div>
+            <a href="{{ url_for('admin.trainee.list_trainees') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right me-1"></i> ביטול
+            </a>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-{{ 'edit' if trainee else 'plus' }} me-1"></i>
+            {{ 'פרטי חניך' if trainee else 'פרטי חניך חדש' }}
+        </div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data" id="traineeForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <ul class="nav nav-tabs mb-4" id="traineeTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab" aria-controls="personal" aria-selected="true">
+                            פרטים אישיים
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="training-tab" data-bs-toggle="tab" data-bs-target="#training" type="button" role="tab" aria-controls="training" aria-selected="false">
+                            פרטי הכשרה
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab" aria-controls="documents" aria-selected="false">
+                            מסמכים
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="traineeTabsContent">
+                    <!-- Personal Information Tab -->
+                    <div class="tab-pane fade show active" id="personal" role="tabpanel" aria-labelledby="personal-tab">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="user_id" class="form-label">משתמש <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="user_id" name="user_id" required {{ 'disabled' if trainee else '' }}>
+                                        {% if trainee %}
+                                        <option value="{{ trainee.user.id }}" selected>{{ trainee.user.name }} ({{ trainee.user.email }})</option>
+                                        {% else %}
+                                        <option value="" disabled selected>בחר משתמש</option>
+                                        {% for user in users %}
+                                        <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
+                                        {% endfor %}
+                                        {% endif %}
+                                    </select>
+                                    {% if trainee %}
+                                    <input type="hidden" name="user_id" value="{{ trainee.user.id }}">
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="id_number" class="form-label">תעודת זהות <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="id_number" name="id_number" 
+                                           value="{{ trainee.id_number if trainee }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="date_of_birth" class="form-label">תאריך לידה <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" 
+                                           value="{{ trainee.date_of_birth.strftime('%Y-%m-%d') if trainee and trainee.date_of_birth }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">טלפון <span class="text-danger">*</span></label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" 
+                                           value="{{ trainee.phone if trainee }}" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="address" class="form-label">כתובת <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="address" name="address" 
+                                           value="{{ trainee.address if trainee }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="city" class="form-label">עיר <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="city" name="city" 
+                                           value="{{ trainee.city if trainee }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="emergency_contact_name" class="form-label">שם איש קשר לחירום <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="emergency_contact_name" name="emergency_contact_name" 
+                                           value="{{ trainee.emergency_contact_name if trainee }}" required>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="emergency_contact_phone" class="form-label">טלפון <span class="text-danger">*</span></label>
+                                            <input type="tel" class="form-control" id="emergency_contact_phone" name="emergency_contact_phone" 
+                                                   value="{{ trainee.emergency_contact_phone if trainee }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="emergency_contact_relation" class="form-label">קרבה <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="emergency_contact_relation" name="emergency_contact_relation" 
+                                                   value="{{ trainee.emergency_contact_relation if trainee }}" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Training Information Tab -->
+                    <div class="tab-pane fade" id="training" role="tabpanel" aria-labelledby="training-tab">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="training_program" class="form-label">תוכנית הכשרה <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="training_program" name="training_program" 
+                                           value="{{ trainee.training_program if trainee }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="start_date" class="form-label">תאריך התחלה <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" id="start_date" name="start_date" 
+                                           value="{{ trainee.start_date.strftime('%Y-%m-%d') if trainee and trainee.start_date }}" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="end_date" class="form-label">תאריך סיום צפוי</label>
+                                    <input type="date" class="form-control" id="end_date" name="end_date" 
+                                           value="{{ trainee.end_date.strftime('%Y-%m-%d') if trainee and trainee.end_date }}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">סטטוס <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="status" name="status" required>
+                                        <option value="active" {{ 'selected' if trainee and trainee.status == 'active' }}>פעיל</option>
+                                        <option value="on_hold" {{ 'selected' if trainee and trainee.status == 'on_hold' }}>בהמתנה</option>
+                                        <option value="completed" {{ 'selected' if trainee and trainee.status == 'completed' }}>הושלם</option>
+                                        <option value="dropped" {{ 'selected' if trainee and trainee.status == 'dropped' }}>נשר</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">תאריכים חשובים</label>
+                                    <div class="form-text text-muted mb-2">
+                                        {% if trainee %}
+                                        <div>נרשם בתאריך: {{ trainee.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                                        <div>עודכן לאחרונה: {{ trainee.updated_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                                        {% else %}
+                                        <div>הרישום יסומן בתאריך הנוכחי</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documents Tab -->
+                    <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">
+                        <div class="mb-3">
+                            <label for="documents" class="form-label">העלאת מסמכים</label>
+                            <input class="form-control" type="file" id="documents" name="documents" multiple>
+                            <div class="form-text">ניתן לבחור מספר קבצים להעלאה בו זמנית</div>
+                        </div>
+                        
+                        {% if trainee and trainee.documents %}
+                        <div class="mt-4">
+                            <h6>מסמכים קיימים:</h6>
+                            <div class="list-group">
+                                {% for doc in trainee.documents %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fas fa-file me-2"></i>
+                                        {{ doc.split('/')[-1] }}
+                                    </div>
+                                    <div>
+                                        <a href="{{ url_for('static', filename=doc) }}" 
+                                           class="btn btn-sm btn-outline-primary me-1" 
+                                           target="_blank">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('static', filename=doc) }}" 
+                                           class="btn btn-sm btn-outline-secondary me-1" 
+                                           download>
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger delete-document" 
+                                                data-path="{{ doc }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> שמור שינויים
+                        </button>
+                        <a href="{{ url_for('admin.trainee.list_trainees') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> ביטול
+                        </a>
+                    </div>
+                    
+                    {% if trainee %}
+                    <div>
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="fas fa-trash-alt me-1"></i> מחק חניך
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+{% if trainee %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">מחיקת חניך</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>האם אתה בטוח שברצונך למחוק את החניך <strong>{{ trainee.user.name }}</strong>?</p>
+                <p class="text-danger">פעולה זו תמחק את כל הנתונים הקשורים לחניך ולא תתאם שחזור.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+                <form action="{{ url_for('admin.trainee.delete_trainee', trainee_id=trainee.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">מחק</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Delete Document Confirmation Modal -->
+<div class="modal fade" id="deleteDocumentModal" tabindex="-1" aria-labelledby="deleteDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteDocumentModalLabel">מחיקת מסמך</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>האם אתה בטוח שברצונך למחוק את המסמך <strong id="documentName"></strong>?</p>
+                <p class="text-danger">לא תוכל לשחזר את הפעולה הזו.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+                <form id="deleteDocumentForm" method="POST" action="">
+                    <input type="hidden" name="document_path" id="documentPath">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">מחק</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Initialize datepickers
+    $(document).ready(function() {
+        // Handle document deletion
+        $('.delete-document').on('click', function(e) {
+            e.preventDefault();
+            const docPath = $(this).data('path');
+            const docName = docPath.split('/').pop();
+            const deleteUrl = "{{ url_for('admin.trainee.delete_document', trainee_id=trainee.id if trainee else '') }}";
+            
+            $('#documentName').text(docName);
+            $('#documentPath').val(docPath);
+            $('#deleteDocumentForm').attr('action', deleteUrl);
+            
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteDocumentModal'));
+            deleteModal.show();
+        });
+        
+        // Form validation
+        $('#traineeForm').validate({
+            rules: {
+                user_id: "required",
+                id_number: "required",
+                date_of_birth: "required",
+                phone: "required",
+                address: "required",
+                city: "required",
+                training_program: "required",
+                start_date: "required",
+                status: "required",
+                emergency_contact_name: "required",
+                emergency_contact_phone: "required",
+                emergency_contact_relation: "required"
+            },
+            messages: {
+                user_id: "נא לבחור משתמש",
+                id_number: "נא להזין מספר תעודת זהות",
+                date_of_birth: "נא לבחור תאריך לידה",
+                phone: "נא להזין מספר טלפון",
+                address: "נא להזין כתובת",
+                city: "נא להזין עיר",
+                training_program: "נא להזין תוכנית הכשרה",
+                start_date: "נא לבחור תאריך התחלה",
+                status: "נא לבחור סטטוס",
+                emergency_contact_name: "נא להזין שם איש קשר",
+                emergency_contact_phone: "נא להזין טלפון איש קשר",
+                emergency_contact_relation: "נא להזין קרבת קשר"
+            },
+            errorElement: 'div',
+            errorPlacement: function(error, element) {
+                error.addClass('invalid-feedback');
+                element.closest('.mb-3').append(error);
+            },
+            highlight: function(element, errorClass, validClass) {
+                $(element).addClass('is-invalid');
+            },
+            unhighlight: function(element, errorClass, validClass) {
+                $(element).removeClass('is-invalid');
+            }
+        });
+    });
+</script>
+{% endblock %}

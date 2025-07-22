@@ -14,7 +14,7 @@ from itsdangerous.exc import BadSignature, SignatureExpired
 from mongoengine import (
     StringField, EmailField, DateTimeField, BooleanField, 
     ListField, ReferenceField, LazyReferenceField, IntField, DictField, 
-    PULL, CASCADE
+    PULL, CASCADE, NULLIFY
 )
 
 # Import base document
@@ -50,8 +50,8 @@ class User(BaseDocument, UserMixin):
         'collection': 'users',
         'indexes': [
             # Single field indexes
-            {'fields': ['user_id'], 'unique': True, 'sparse': True},
-            'email',
+            {'fields': ['user_id'], 'unique': True, 'name': 'user_id_unique'},
+            {'fields': ['email'], 'unique': True, 'name': 'email_unique'},
             'is_active',
             'email_verified',
             'last_login',
@@ -59,8 +59,8 @@ class User(BaseDocument, UserMixin):
             'updated_at',
             'status',
             
-            # TTL index for temporary data
-            {'fields': ['created_at'], 'expireAfterSeconds': 60 * 60 * 24 * 30 * 6},  # 6 months
+            # TTL index for temporary data - removed to avoid conflicts
+            # {'fields': ['created_at'], 'expireAfterSeconds': 60 * 60 * 24 * 30 * 6},  # 6 months
             
             # Compound indexes
             [('email', 1), ('is_active', 1)],
@@ -73,15 +73,17 @@ class User(BaseDocument, UserMixin):
             {
                 'fields': ['$email', '$first_name', '$last_name', '$name'],
                 'default_language': 'english',
-                'weights': {'email': 10, 'name': 5, 'first_name': 5, 'last_name': 5}
+                'weights': {'email': 10, 'name': 5, 'first_name': 5, 'last_name': 5},
+                'name': 'user_search_text'
             }
         ],
         'ordering': ['-created_at'],
-        'strict': False  # Allow dynamic fields
+        'strict': False,  # Allow dynamic fields
+        'auto_create_index': False  # Prevent automatic index creation to avoid conflicts
     }
     
     # Authentication fields
-    user_id = StringField(required=True, unique=True, sparse=True)  # Sparse index to allow nulls
+    user_id = StringField(required=True, unique=True)  # Removed sparse=True to avoid index conflicts
     email = EmailField(required=True, unique=True, max_length=255)
     password_hash = StringField(required=True, max_length=255)
     is_active = BooleanField(default=True)
@@ -101,8 +103,9 @@ class User(BaseDocument, UserMixin):
     
     # Role and status
     status = StringField(choices=STATUS_CHOICES, default=STATUS_ACTIVE)
-    # Role and permissions - using string reference to avoid circular imports
-    roles = ListField(ReferenceField('role.Role', reverse_delete_rule=PULL), default=[])
+    # Using string literals for all model references to avoid circular imports
+    # The actual model classes will be resolved at runtime
+    roles = ListField(ReferenceField('Role', reverse_delete_rule=PULL, required=False, dbref=True, allow_none=True))
     permissions = ListField(StringField())
     
     # Authentication tracking
@@ -137,9 +140,62 @@ class User(BaseDocument, UserMixin):
     # Profile
     profile_picture = StringField()
     
-    # Relationships - using string references to avoid circular imports
-    assessments = ListField(LazyReferenceField('assessment.Assessment', reverse_delete_rule=PULL, required=False, passthrough=True))
-    created_assessments = ListField(LazyReferenceField('assessment.Assessment', reverse_delete_rule=PULL, required=False, passthrough=True))
+    # Using string references to avoid circular imports
+    assessments = ListField(LazyReferenceField('Assessment', required=False, passthrough=False, dbref=True))
+    created_assessments = ListField(LazyReferenceField('Assessment', required=False, passthrough=False, dbref=True))
+    
+    def clean(self):
+        """Ensure required fields are set before validation."""
+        # Generate a user_id if not provided
+        if not self.user_id:
+            from bson import ObjectId
+            self.user_id = str(ObjectId())
+            
+        # Set name from first_name and last_name if not provided
+        if not self.name and (self.first_name or self.last_name):
+            self.name = f"{self.first_name or ''} {self.last_name or ''}".strip()
+            
+    def save(self, *args, **kwargs):
+        """Override save to ensure clean is called and handle indexes."""
+        self.clean()
+        return super().save(*args, **kwargs)
+        
+    # Disable automatic registration of delete rules
+    def __init__(self, *args, **kwargs):
+        # Generate a user_id if not provided
+        if 'user_id' not in kwargs and not hasattr(self, 'user_id'):
+            from bson import ObjectId
+            self.user_id = str(ObjectId())
+        
+        super(User, self).__init__(*args, **kwargs)
+        
+        # Manually set up delete rules after all models are loaded
+        if not hasattr(self, '_delete_rules_setup'):
+            self._delete_rules_setup = True
+            from mongoengine import signals
+            signals.post_init.connect(self._setup_delete_rules, sender=self.__class__)
+    
+    def _setup_delete_rules(self, *args, **kwargs):
+        """Manually set up delete rules after all models are loaded."""
+        try:
+            from mongoengine import get_document
+            Assessment = get_document('Assessment')
+            
+            # Set up delete rules for assessments
+            if hasattr(self, 'assessments') and self.assessments:
+                for assessment in self.assessments:
+                    assessment._meta['delete_rules'] = assessment._meta.get('delete_rules', {})
+                    assessment._meta['delete_rules']['candidate'] = (self.__class__, 'PULL')
+            
+            # Set up delete rules for created_assessments
+            if hasattr(self, 'created_assessments') and self.created_assessments:
+                for assessment in self.created_assessments:
+                    assessment._meta['delete_rules'] = assessment._meta.get('delete_rules', {})
+                    assessment._meta['delete_rules']['created_by'] = (self.__class__, 'NULLIFY')
+                    
+        except Exception as e:
+            import logging
+            logging.error(f"Error setting up delete rules: {e}")
     
     # Audit fields
     created_by = StringField()
@@ -293,28 +349,29 @@ class User(BaseDocument, UserMixin):
         self.save()
         return False
     
-    def has_role(self, role):
+    def has_role(self, role_name):
         """Check if the user has the specified role."""
-        return self.role == role
+        return any(role.name == role_name for role in self.roles)
     
-    def has_any_role(self, *roles):
+    def has_any_role(self, *role_names):
         """Check if the user has any of the specified roles."""
-        return self.role in roles
+        user_role_names = [role.name for role in self.roles]
+        return any(role_name in user_role_names for role_name in role_names)
     
     @property
     def is_admin(self):
         """Check if the user is an admin."""
-        return self.role == self.ROLE_ADMIN
+        return self.has_role(self.ROLE_ADMIN)
     
     @property
     def is_examiner(self):
         """Check if the user is an examiner."""
-        return self.role == self.ROLE_EXAMINER
+        return self.has_role(self.ROLE_EXAMINER)
     
     @property
     def is_candidate(self):
         """Check if the user is a candidate."""
-        return self.role == self.ROLE_CANDIDATE
+        return self.has_role(self.ROLE_CANDIDATE)
     
     @property
     def is_authenticated(self):
@@ -388,10 +445,11 @@ class User(BaseDocument, UserMixin):
         return f"{self.name} <{self.email}>"
     
     def is_candidate(self):
-        return self.role == 'candidate'
-    
-    def __str__(self):
-        return f"{self.name} <{self.email}>"
+        return self.has_role('candidate')
 
-# Export the User model
+# Register the model after it's defined
+# This will be handled by the models/__init__.py file
 __all__ = ['User']
+
+# The model will be registered by the models/__init__.py file
+# to ensure proper import order and avoid circular imports
