@@ -3,6 +3,86 @@
 {% block title %}ניהול נבחנים - EP-Simulator{% endblock %}
 {% block admin_title %}ניהול נבחנים{% endblock %}
 
+{% block extra_css %}
+{{ super() }}
+<style>
+    /* Main scrollable container */
+    .trainee-scroll-container {
+        height: 480px; /* Fixed height for exactly 6 items (6 * row height) */
+        overflow-y: auto;  /* Enable vertical scrolling */
+        overflow-x: auto;  /* Enable horizontal scrolling */
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        position: relative;
+        background: #fff;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    /* Table styling */
+    .trainee-table {
+        width: 100%;
+        margin-bottom: 0;
+        min-width: 800px; /* Ensure table has minimum width */
+    }
+    
+    .trainee-table thead th {
+        position: sticky;
+        top: 0;
+        background: #f8f9fa;
+        z-index: 10;
+        padding: 1rem;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .trainee-table tbody tr {
+        transition: background-color 0.2s;
+    }
+    
+    .trainee-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .trainee-table td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-top: 1px solid #dee2e6;
+        height: 80px; /* Fixed height for each row */
+    }
+    
+    /* Scrollbar styling */
+    .trainee-scroll-container::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .trainee-scroll-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .trainee-scroll-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+    
+    .trainee-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    
+    /* Status badges */
+    .status-badge {
+        padding: 0.35em 0.65em;
+        font-size: 0.75em;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
+
 {% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="btn-toolbar">
@@ -53,9 +133,8 @@
     <!-- Trainees Table -->
     <div class="card">
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <div class="table-container" style="max-height: 70vh; overflow-y: auto;">
-                <table class="table table-hover mb-0">
+            <div class="trainee-scroll-container">
+                <table class="table table-hover mb-0 trainee-table">
                     <thead class="table-light">
                         <tr>
                             <th>מזהה</th>
