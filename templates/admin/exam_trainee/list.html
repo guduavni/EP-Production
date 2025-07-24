@@ -1,0 +1,140 @@
+{% extends "admin_base.html" %}
+
+{% block title %}ניהול נבחנים - EP-Simulator{% endblock %}
+{% block admin_title %}ניהול נבחנים{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="btn-toolbar">
+        <a href="{{ url_for('admin.exam_trainee.add_trainee') }}" class="btn btn-primary me-2">
+            <i class="fas fa-plus me-2"></i>הוספת נבחן חדש
+        </a>
+    </div>
+    <h1 class="h3 mb-0">ניהול נבחנים</h1>
+</div>
+
+<!-- Search and Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search" 
+                           value="{{ request.args.get('search', '') }}" 
+                           placeholder="חיפוש לפי שם, שם משפחה או מזהה">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="">כל הסטטוסים</option>
+                    <option value="registered" {% if request.args.get('status') == 'registered' %}selected{% endif %}>
+                        רשומים
+                    </option>
+                    <option value="in_progress" {% if request.args.get('status') == 'in_progress' %}selected{% endif %}>
+                        במבחן
+                    </option>
+                    <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>
+                        הושלמו
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <a href="{{ url_for('admin.exam_trainee.list_trainees') }}" class="btn btn-outline-secondary w-100">
+                    איפוס
+                </a>
+            </div>
+        </form>
+        </div>
+    </div>
+
+    <!-- Trainees Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <div class="table-container" style="max-height: 70vh; overflow-y: auto;">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>מזהה</th>
+                            <th>שם מלא</th>
+                            <th>תאריך רישום</th>
+                            <th>סטטוס</th>
+                            <th>שלבים</th>
+                            <th class="text-end">פעולות</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trainee in trainees %}
+                        <tr>
+                            <td>{{ trainee.unique_id }}</td>
+                            <td>{{ trainee.first_name }} {{ trainee.last_name }}</td>
+                            <td>{{ trainee.registration_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if trainee.status == 'completed' else 'warning' if trainee.status == 'in_progress' else 'info' }}">
+                                    {{ 'הושלם' if trainee.status == 'completed' else 'במבחן' if trainee.status == 'in_progress' else 'רשום' }}
+                                </span>
+                            </td>
+                            <td>
+                                {% for i in range(1, 4) %}
+                                    {% set stage_status = trainee.get_exam_stage_status(i) %}
+                                    <span class="badge bg-{{ 'success' if stage_status == 'completed' else 'secondary' }} me-1" 
+                                          title="שלב {{ i }}">
+                                        {{ i }}
+                                    </span>
+                                {% endfor %}
+                                {% if trainee.icao_assessment %}
+                                    <span class="badge bg-primary" title="תבחין ICAO">
+                                        ICAO: {{ trainee.icao_assessment.get('level', 'N/A') }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group">
+                                    <a href="{{ url_for('admin.exam_trainee.view_trainee', trainee_id=trainee.unique_id) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="צפה">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="#" class="btn btn-sm btn-outline-secondary" title="הדפס דוח">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                    <form method="post" action="{{ url_for('admin.exam_trainee.delete_trainee', trainee_id=trainee.unique_id) }}" 
+                                          onsubmit="return confirm('האם אתה בטוח שברצונך למחוק נבחן זה? פעולה זו לא ניתנת לביטול.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="מחק">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">לא נמצאו נבחנים</div>
+                                <a href="{{ url_for('admin.exam_trainee.add_trainee') }}" class="btn btn-sm btn-primary mt-2">
+                                    <i class="fas fa-plus me-1"></i> הוסף נבחן חדש
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                
+                <div class="p-3 border-top text-muted text-center small">
+                    סה"כ {{ trainees.count() }} נבחנים
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Add any custom JavaScript here
+</script>
+{% endblock %}
