@@ -1,0 +1,205 @@
+{% extends "admin_base.html" %}
+
+{% block title %}ניהול משתמשים{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">ניהול משתמשים</h3>
+                    <div class="card-tools">
+                        <form action="{{ url_for('admin.users.list_users') }}" method="get" class="form-inline">
+                            <div class="input-group input-group-sm" style="width: 400px;">
+                                <input type="text" name="search" id="searchInput" class="form-control float-right" 
+                                       placeholder="חיפוש לפי שם, אימייל או תעודת זהות..." value="{{ search or '' }}">
+                                <select name="role" class="form-control" style="width: 120px;">
+                                    <option value="">כל התפקידים</option>
+                                    <option value="admin" {% if role == 'admin' %}selected{% endif %}>מנהל</option>
+                                    <option value="examiner" {% if role == 'examiner' %}selected{% endif %}>בוחן</option>
+                                    <option value="candidate" {% if role == 'candidate' %}selected{% endif %}>נבחן</option>
+                                </select>
+                                <div class="input-group-append">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-search"></i> חפש
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <!-- /.card-header -->
+                <div class="card-body table-responsive p-0" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-hover text-nowrap">
+                        <thead>
+                            <tr>
+                                <th>שם מלא</th>
+                                <th>אימייל</th>
+                                <th>תעודת זהות</th>
+                                <th>תפקיד</th>
+                                <th>סטטוס</th>
+                                <th>תאריך הרשמה</th>
+                                <th>פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.name }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.id_number or '-' }}</td>
+                                <td>
+                                    {% if user.role == 'admin' %}
+                                        <span class="badge badge-danger">מנהל מערכת</span>
+                                    {% elif user.role == 'examiner' %}
+                                        <span class="badge badge-warning">בוחן</span>
+                                    {% else %}
+                                        <span class="badge badge-info">מועמד</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="status-{{ user.id }}" 
+                                               {% if user.is_active %}checked{% endif %}
+                                               data-user-id="{{ user.id }}">
+                                        <label class="custom-control-label" for="status-{{ user.id }}">
+                                            {% if user.is_active %}
+                                                <span class="text-success">פעיל</span>
+                                            {% else %}
+                                                <span class="text-danger">לא פעיל</span>
+                                            {% endif %}
+                                        </label>
+                                    </div>
+                                </td>
+                                <td>{{ user.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="#" class="btn btn-sm btn-info" title="ערוך">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        {% if user.id != current_user.id %}
+                                        <button class="btn btn-sm btn-danger delete-user" 
+                                                data-user-id="{{ user.id }}" 
+                                                data-user-name="{{ user.name }}"
+                                                title="מחק">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center">לא נמצאו משתמשים</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- /.card-body -->
+                {% if pagination.pages > 1 %}
+                <div class="card-footer clearfix">
+                    <ul class="pagination pagination-sm m-0 float-right">
+                        {% if pagination.has_prev %}
+                            <li class="page-item"><a class="page-link" href="{{ url_for('admin.users.list_users', page=pagination.prev_num, search=search, role=role) }}">&laquo;</a></li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                        {% endif %}
+                        
+                        {% for page_num in range(1, pagination.pages + 1) %}
+                            {% if page_num == pagination.page %}
+                                <li class="page-item active"><span class="page-link">{{ page_num }}</span></li>
+                            {% else %}
+                                <li class="page-item"><a class="page-link" href="{{ url_for('admin.users.list_users', page=page_num, search=search, role=role) }}">{{ page_num }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                            <li class="page-item"><a class="page-link" href="{{ url_for('admin.users.list_users', page=pagination.next_num, search=search, role=role) }}">&raquo;</a></li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                        {% endif %}
+                    </ul>
+                    <div class="float-left mt-2">
+                        <span class="text-muted">מציג {{ pagination.first }} - {{ pagination.last }} מתוך {{ pagination.total }} משתמשים</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <!-- /.card -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // Handle search
+    $('#searchBtn').click(function() {
+        const search = $('#searchInput').val();
+        const url = new URL(window.location.href);
+        url.searchParams.set('search', search);
+        window.location.href = url.toString();
+    });
+
+    // Handle enter key in search
+    $('#searchInput').keypress(function(e) {
+        if (e.which == 13) {
+            $('#searchBtn').click();
+        }
+    });
+
+    // Toggle user status
+    $('input[type="checkbox"]').change(function() {
+        const userId = $(this).data('user-id');
+        const isActive = $(this).is(':checked');
+        
+        $.ajax({
+            url: `/admin/users/${userId}/toggle-status`,
+            method: 'POST',
+            contentType: 'application/json',
+            success: function(response) {
+                if (response.success) {
+                    const statusLabel = $(`label[for="status-${userId}"] span`);
+                    if (response.is_active) {
+                        statusLabel.text('פעיל').removeClass('text-danger').addClass('text-success');
+                    } else {
+                        statusLabel.text('לא פעיל').removeClass('text-success').addClass('text-danger');
+                    }
+                } else {
+                    // Revert checkbox on error
+                    $(`#status-${userId}`).prop('checked', !isActive);
+                    alert(response.message || 'אירעה שגיאה בעדכון הסטטוס');
+                }
+            },
+            error: function() {
+                // Revert checkbox on error
+                $(`#status-${userId}`).prop('checked', !isActive);
+                alert('אירעה שגיאה בעדכון הסטטוס');
+            }
+        });
+    });
+
+    // Delete user
+    $('.delete-user').click(function() {
+        const userId = $(this).data('user-id');
+        const userName = $(this).data('user-name');
+        
+        if (confirm(`האם אתה בטוח שברצונך למחוק את המשתמש ${userName}?`)) {
+            $.ajax({
+                url: `/admin/users/${userId}/delete`,
+                method: 'POST',
+                success: function() {
+                    window.location.reload();
+                },
+                error: function() {
+                    alert('אירעה שגיאה במחיקת המשתמש');
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}
